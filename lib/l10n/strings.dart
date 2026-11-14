@@ -1,0 +1,362 @@
+import 'package:flutter/widgets.dart';
+
+import '../data/models/region.dart';
+import '../domain/anomaly.dart';
+import '../services/alert_engine.dart';
+import '../services/report_store.dart';
+import '../services/weather_service.dart';
+
+/// English + Arabic strings. Small and dependency-free on purpose.
+///
+/// Usage: `final s = S.of(context); Text(s.t('tab_today'))`.
+/// test/l10n_test.dart checks that every key used in lib/ exists in both maps.
+class S {
+  const S(this.ar);
+  final bool ar;
+
+  static S of(BuildContext context) =>
+      S(Localizations.localeOf(context).languageCode == 'ar');
+
+  String t(String key) => (ar ? _ar[key] : _en[key]) ?? _en[key] ?? key;
+
+  String month(int m) => (ar ? _monthsAr : monthNames)[m - 1];
+  String monthLetter(int m) => ar ? '$m' : monthShort[m - 1];
+  List<String> get monthLetters => [for (var m = 1; m <= 12; m++) monthLetter(m)];
+  String region(Region r) => ar ? r.nameAr : r.name;
+  String compass(int i) => (ar ? _compassAr : _compassEn)[i];
+
+  String status(FireStatus st) => t('status_${st.name}');
+  String label(ReportLabel l) => t('label_${l.name}');
+  String burn(BurnLevel l) => t('burn_${l.name}');
+
+  String ratio(double r) => '${r.toStringAsFixed(1)}×';
+
+  /// The one-sentence answer.
+  String sentence(AnomalySummary s, Region r) {
+    if (!ar) return s.sentence(r.name);
+    final m = month(s.month);
+    final comparison = switch (s.status) {
+      FireStatus.below => s.ratio < 0.05
+          ? 'شبه انعدام للحرائق'
+          : 'أقل من المعتاد (${(s.ratio * 100).round()}% من الطبيعي)',
+      FireStatus.normal => 'ضمن المعدّل الطبيعي (${ratio(s.ratio)} المعتاد)',
+      FireStatus.above => '${ratio(s.ratio)} المستوى المعتاد',
+      FireStatus.extreme => '${ratio(s.ratio)} المستوى المعتاد — حالة استثنائية',
+    };
+    final rank = s.rank == 1
+        ? 'الأعلى لشهر $m خلال ${s.yearsCompared} سنة'
+        : 'في المرتبة ${s.rank} لشهر $m من أصل ${s.yearsCompared} سنة';
+    return '$m ${s.year} في ${r.nameAr}: $comparison. $rank.';
+  }
+
+  String alertTitle(FireAlert a) {
+    final place = region(a.region);
+    return switch (a.type) {
+      AlertType.anomaly => ar
+          ? '$place: نشاط حرائق ${status(a.summary!.status)}'
+          : '$place: ${status(a.summary!.status).toLowerCase()} fire activity',
+      AlertType.seasonSoon => ar ? '$place: موسم الحرائق يقترب' : '$place: fire season is coming',
+      AlertType.inSeason => ar ? '$place: ذروة موسم الحرائق' : '$place: peak fire season',
+      AlertType.nearbyHotspot => ar ? 'رصد حريق بالقرب منك' : 'Fire detected near you',
+      AlertType.detections => ar ? '$place: رصد بالأقمار الصناعية' : '$place: new satellite detections',
+    };
+  }
+
+  String alertBody(FireAlert a) {
+    switch (a.type) {
+      case AlertType.anomaly:
+        return sentence(a.summary!, a.region);
+      case AlertType.seasonSoon:
+        final last = a.lastYearRatio == null
+            ? ''
+            : ar
+                ? ' العام الماضي كان ${ratio(a.lastYearRatio!)} المعتاد.'
+                : ' Last year it was ${ratio(a.lastYearRatio!)} the usual level.';
+        return ar
+            ? 'تاريخياً، تبدأ الفترة الحرجة في ${month(a.month!)} — بعد ${a.days} يوماً.$last'
+            : 'Historically the critical period starts in ${month(a.month!)} — in ${a.days} days.$last';
+      case AlertType.inSeason:
+        return ar
+            ? 'أنت ضمن الفترة الحرجة تاريخياً، حتى نهاية ${month(a.month!)}. تجنّب الحرق الزراعي.'
+            : 'You are in the historical critical period, until the end of ${month(a.month!)}. Avoid agricultural burning.';
+      case AlertType.nearbyHotspot:
+        final d = a.distanceKm!.toStringAsFixed(a.distanceKm! < 10 ? 1 : 0);
+        return ar
+            ? 'رُصدت بؤرة حرارية على بعد $d كم باتجاه ${compass(a.compass!)} خلال آخر 48 ساعة.'
+            : 'A hotspot was detected $d km ${compass(a.compass!)} of you in the last 48 h.';
+      case AlertType.detections:
+        return ar
+            ? '${a.count} بؤرة حرارية مؤكدة في آخر 48 ساعة.'
+            : '${a.count} confirmed hotspots in the last 48 h.';
+    }
+  }
+
+  static const _monthsAr = [
+    'كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران',
+    'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول',
+  ];
+  static const _compassEn = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  static const _compassAr = ['الشمال', 'الشمال الشرقي', 'الشرق', 'الجنوب الشرقي', 'الجنوب', 'الجنوب الغربي', 'الغرب', 'الشمال الغربي'];
+
+  static const _en = <String, String>{
+    'app_name': 'Ember Almanac',
+    'tab_today': 'Today',
+    'tab_calendar': 'Calendar',
+    'tab_map': 'Map',
+    'tab_alerts': 'Alerts',
+    'question': 'Is this fire season normal?',
+    'this_month': 'This month',
+    'usual': 'Usual',
+    'rank': 'Rank',
+    'fire_rings': 'Fire Rings',
+    'fire_rings_sub': 'One ring per year, read it like a tree',
+    'rings_caption': 'Inner ring = first year · outer ring = latest · January at top, clockwise',
+    'season': 'Season',
+    'critical_period': 'Critical period',
+    'normal_range': 'Normal range',
+    'median': 'Median',
+    'evidence': 'Evidence',
+    'evidence_sub': 'How accurate is the stitching?',
+    'raw_record': 'Raw record',
+    'harmonized': 'Harmonized',
+    'units': 'Units',
+    'language': 'العربية',
+    'share': 'Share',
+    'share_card': 'Share card',
+    'share_failed': 'Could not share the card',
+    'card_footer': 'Harmonized MODIS + VIIRS record · NASA Space Apps 2026 · Team CedX',
+    'status_below': 'Below normal',
+    'status_normal': 'Normal',
+    'status_above': 'Above normal',
+    'status_extreme': 'Extreme',
+    // Near me
+    'near_me': 'Near me',
+    'use_location': 'Use my location',
+    'locating': 'Finding you…',
+    'you_are_in': 'You are in',
+    'outside_regions': 'Outside covered areas. Nearest:',
+    'km_away': 'km away',
+    'nearest_hotspot': 'Nearest recent hotspot',
+    'no_hotspots': 'No hotspots in the last 48 h',
+    'hours_ago': 'h ago',
+    'loc_off': 'Location is turned off on this device',
+    'loc_denied': 'Location permission was denied',
+    'loc_failed': 'Could not get your location',
+    'near_me_hint': 'See fire activity where you are right now.',
+    // Weather & burning
+    'fire_weather': 'Fire weather now',
+    'fire_weather_sub': 'Is today safe for an agricultural burn?',
+    'temperature': 'Temp',
+    'humidity': 'Humidity',
+    'wind': 'Wind',
+    'gusts': 'Gusts',
+    'weather_failed': 'Weather unavailable (needs internet)',
+    'retry': 'Retry',
+    'burn_safe': 'Low risk to burn today',
+    'burn_caution': 'Burn with caution',
+    'burn_unsafe': 'Do not burn today',
+    'why_wind_high': 'Strong wind spreads fire fast',
+    'why_wind_moderate': 'Moderate wind',
+    'why_humidity_low': 'Very dry air',
+    'why_humidity_moderate': 'Dry air',
+    'why_hot': 'Hot day',
+    'why_anomaly': 'Fire activity is above normal this season',
+    'why_critical_period': 'Inside the historical critical period',
+    'why_raining': 'Rain — burns may not hold',
+    'quiet_months': 'Historically quietest months',
+    'weather_source': 'Weather: Open-Meteo',
+    // Calendar
+    'burning_calendar': 'Burning calendar',
+    'raw_sensors': 'Raw sensors',
+    'the_seam': 'The seam',
+    'seam_fixed': 'One fair record: MODIS years converted to VIIRS-equivalent',
+    'seam_raw': 'Raw counts jump in 2012 — only because VIIRS has sharper eyes',
+    'tap_month': 'Tap a month to see its numbers',
+    'less': 'Less',
+    'more_fire': 'More fire',
+    'sensor': 'Sensor',
+    'raw_count': 'Raw count',
+    'usual_median': 'Usual (median)',
+    'vs_usual': 'vs usual',
+    // Map
+    'hotspots_48h': 'Hotspots · last 48 h',
+    'detections': 'detections',
+    'hotspot': 'Hotspot',
+    'confidence': 'confidence',
+    'verify_field': 'Verify in the field',
+    'report_fire': 'Report a fire',
+    'my_reports': 'My reports',
+    'my_location': 'My location',
+    // Reports
+    'field_report': 'Field report',
+    'what_see': 'What do you see?',
+    'label_wildfire': 'Wildfire',
+    'label_agriculturalBurn': 'Agricultural burn',
+    'label_industrial': 'Industrial / flare',
+    'label_falseAlarm': 'No fire (false alarm)',
+    'label_unsure': 'Not sure',
+    'take_photo': 'Take photo',
+    'from_gallery': 'Gallery',
+    'note': 'Note (optional)',
+    'save_report': 'Save report',
+    'report_saved': 'Report saved. Thank you — this is ground truth for the satellites.',
+    'position': 'Position',
+    'getting_position': 'Getting GPS position…',
+    'linked_hotspot': 'Linked satellite hotspot',
+    'no_reports': 'No reports yet. Tap a hotspot on the map and verify it.',
+    'delete': 'Delete',
+    'reports_note': 'Stored on this phone. They will upload when the backend is ready.',
+    // Alerts
+    'alerts': 'Alerts',
+    'watching': 'Watching',
+    'watch': 'Watch',
+    'stop_watching': 'Stop watching',
+    'alerts_intro': 'Early warning for the places you watch: unusual activity, upcoming critical periods and nearby detections.',
+    'active_alerts': 'Active alerts',
+    'no_alerts': 'All quiet. No alerts for your watched places.',
+    'check_notify': 'Check now & notify',
+    'enable_notifications': 'Allow notifications',
+    'notifications_denied': 'Notifications are blocked in system settings',
+    'notifications_sent': 'Alerts sent to your notifications',
+    'watched_places': 'Watched places',
+    'loading': 'Loading…',
+    'usual_short': 'usual',
+    'emergency': 'Emergency',
+    'emergency_sub': 'See a fire? Call Lebanese Civil Defence.',
+    'call_125': 'Call 125',
+    'sms_location': 'SMS my location',
+    'sms_text': 'Fire spotted at this location:',
+    'could_not_open': 'Could not open',
+    'could_not_load': 'Could not load data',
+  };
+
+  static const _ar = <String, String>{
+    'app_name': 'تقويم الجمر',
+    'tab_today': 'اليوم',
+    'tab_calendar': 'التقويم',
+    'tab_map': 'الخريطة',
+    'tab_alerts': 'التنبيهات',
+    'question': 'هل موسم الحرائق هذا طبيعي؟',
+    'this_month': 'هذا الشهر',
+    'usual': 'المعتاد',
+    'rank': 'الترتيب',
+    'fire_rings': 'حلقات النار',
+    'fire_rings_sub': 'حلقة لكل سنة، اقرأها كحلقات جذع الشجرة',
+    'rings_caption': 'الحلقة الداخلية = أول سنة · الخارجية = الأحدث · كانون الثاني في الأعلى باتجاه عقارب الساعة',
+    'season': 'الموسم',
+    'critical_period': 'الفترة الحرجة',
+    'normal_range': 'النطاق الطبيعي',
+    'median': 'الوسيط',
+    'evidence': 'الدليل',
+    'evidence_sub': 'ما مدى دقة الدمج بين القمرين؟',
+    'raw_record': 'السجل الخام',
+    'harmonized': 'المُوحَّد',
+    'units': 'الوحدة',
+    'language': 'English',
+    'share': 'مشاركة',
+    'share_card': 'بطاقة للمشاركة',
+    'share_failed': 'تعذّرت مشاركة البطاقة',
+    'card_footer': 'سجل MODIS + VIIRS الموحّد · NASA Space Apps 2026 · فريق CedX',
+    'status_below': 'أقل من الطبيعي',
+    'status_normal': 'طبيعي',
+    'status_above': 'فوق الطبيعي',
+    'status_extreme': 'استثنائي',
+    'near_me': 'بالقرب مني',
+    'use_location': 'استخدم موقعي',
+    'locating': 'جارٍ تحديد موقعك…',
+    'you_are_in': 'أنت في',
+    'outside_regions': 'خارج المناطق المغطاة. الأقرب:',
+    'km_away': 'كم',
+    'nearest_hotspot': 'أقرب بؤرة حرارية حديثة',
+    'no_hotspots': 'لا بؤر حرارية في آخر 48 ساعة',
+    'hours_ago': 'ساعة مضت',
+    'loc_off': 'خدمة الموقع مطفأة على هذا الجهاز',
+    'loc_denied': 'تم رفض إذن الوصول إلى الموقع',
+    'loc_failed': 'تعذّر تحديد موقعك',
+    'near_me_hint': 'اعرف نشاط الحرائق حيث أنت الآن.',
+    'fire_weather': 'طقس الحرائق الآن',
+    'fire_weather_sub': 'هل اليوم آمن للحرق الزراعي؟',
+    'temperature': 'الحرارة',
+    'humidity': 'الرطوبة',
+    'wind': 'الرياح',
+    'gusts': 'الهبّات',
+    'weather_failed': 'الطقس غير متوفر (يحتاج إلى إنترنت)',
+    'retry': 'إعادة المحاولة',
+    'burn_safe': 'خطر منخفض للحرق اليوم',
+    'burn_caution': 'احرق بحذر',
+    'burn_unsafe': 'لا تحرق اليوم',
+    'why_wind_high': 'الرياح القوية تنشر النار بسرعة',
+    'why_wind_moderate': 'رياح معتدلة',
+    'why_humidity_low': 'هواء جاف جداً',
+    'why_humidity_moderate': 'هواء جاف',
+    'why_hot': 'يوم حار',
+    'why_anomaly': 'نشاط الحرائق فوق الطبيعي هذا الموسم',
+    'why_critical_period': 'ضمن الفترة الحرجة تاريخياً',
+    'why_raining': 'أمطار — قد لا يصمد الحرق',
+    'quiet_months': 'أهدأ الأشهر تاريخياً',
+    'weather_source': 'الطقس: Open-Meteo',
+    'burning_calendar': 'تقويم الحرائق',
+    'raw_sensors': 'المستشعرات الخام',
+    'the_seam': 'خط الوصل',
+    'seam_fixed': 'سجل واحد عادل: سنوات MODIS محوّلة إلى ما يعادل VIIRS',
+    'seam_raw': 'الأرقام الخام تقفز في 2012 — فقط لأن VIIRS أدقّ رؤية',
+    'tap_month': 'اضغط على شهر لرؤية أرقامه',
+    'less': 'أقل',
+    'more_fire': 'حرائق أكثر',
+    'sensor': 'المستشعر',
+    'raw_count': 'العدد الخام',
+    'usual_median': 'المعتاد (الوسيط)',
+    'vs_usual': 'مقارنة بالمعتاد',
+    'hotspots_48h': 'البؤر الحرارية · آخر 48 ساعة',
+    'detections': 'رصد',
+    'hotspot': 'بؤرة حرارية',
+    'confidence': 'الثقة',
+    'verify_field': 'تحقّق ميدانياً',
+    'report_fire': 'أبلغ عن حريق',
+    'my_reports': 'بلاغاتي',
+    'my_location': 'موقعي',
+    'field_report': 'بلاغ ميداني',
+    'what_see': 'ماذا ترى؟',
+    'label_wildfire': 'حريق غابات',
+    'label_agriculturalBurn': 'حرق زراعي',
+    'label_industrial': 'صناعي / شعلة',
+    'label_falseAlarm': 'لا يوجد حريق (إنذار خاطئ)',
+    'label_unsure': 'غير متأكد',
+    'take_photo': 'التقط صورة',
+    'from_gallery': 'المعرض',
+    'note': 'ملاحظة (اختياري)',
+    'save_report': 'احفظ البلاغ',
+    'report_saved': 'تم حفظ البلاغ. شكراً — هذه حقيقة أرضية للأقمار الصناعية.',
+    'position': 'الموقع',
+    'getting_position': 'جارٍ تحديد الموقع…',
+    'linked_hotspot': 'البؤرة المرصودة المرتبطة',
+    'no_reports': 'لا بلاغات بعد. اضغط على بؤرة في الخريطة وتحقّق منها.',
+    'delete': 'حذف',
+    'reports_note': 'محفوظة على هذا الهاتف. سيتم رفعها عند جهوزية الخادم.',
+    'alerts': 'التنبيهات',
+    'watching': 'قيد المتابعة',
+    'watch': 'تابِع',
+    'stop_watching': 'إيقاف المتابعة',
+    'alerts_intro': 'إنذار مبكر للأماكن التي تتابعها: نشاط غير عادي، فترات حرجة قادمة، ورصد قريب.',
+    'active_alerts': 'تنبيهات نشطة',
+    'no_alerts': 'كل شيء هادئ. لا تنبيهات للأماكن التي تتابعها.',
+    'check_notify': 'افحص الآن وأرسل إشعاراً',
+    'enable_notifications': 'اسمح بالإشعارات',
+    'notifications_denied': 'الإشعارات محظورة في إعدادات النظام',
+    'notifications_sent': 'تم إرسال التنبيهات إلى إشعاراتك',
+    'watched_places': 'الأماكن المتابَعة',
+    'loading': 'جارٍ التحميل…',
+    'usual_short': 'المعتاد',
+    'emergency': 'طوارئ',
+    'emergency_sub': 'ترى حريقاً؟ اتصل بالدفاع المدني اللبناني.',
+    'call_125': 'اتصل بـ 125',
+    'sms_location': 'أرسل موقعي برسالة',
+    'sms_text': 'تم رصد حريق في هذا الموقع:',
+    'could_not_open': 'تعذّر الفتح',
+    'could_not_load': 'تعذّر تحميل البيانات',
+  };
+
+  /// For tests.
+  static Set<String> get englishKeys => _en.keys.toSet();
+  static Set<String> get arabicKeys => _ar.keys.toSet();
+}
