@@ -59,7 +59,7 @@ contract in [`docs/api_contract.md`](docs/api_contract.md).
 
 - Screens only talk to `FireRepository` (`lib/data/repositories/`).
 - `MockFireRepository` reads the bundled JSON.
-- `ApiFireRepository` is ready: set `apiBaseUrl` and `useMockData = false` in `lib/main.dart`.
+- `ApiFireRepository` is ready: set `apiBaseUrl` and `useMockData = false` in `lib/config.dart`.
 - Regenerate the mocks: `python tools/generate_mock.py`
 
 ## Layout

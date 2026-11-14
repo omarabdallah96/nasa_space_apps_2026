@@ -6,7 +6,7 @@ import '../data/models/region.dart';
 import '../domain/anomaly.dart';
 import 'location_service.dart';
 
-enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections }
+enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke }
 
 enum AlertLevel { info, warning, danger }
 
@@ -24,6 +24,7 @@ class FireAlert {
     this.count,
     this.distanceKm,
     this.compass,
+    this.estimateKey,
   });
 
   final AlertType type;
@@ -37,9 +38,12 @@ class FireAlert {
   final double? distanceKm;
   final int? compass;
 
+  /// Rounded position of a ground-smoke estimate (for a stable id).
+  final String? estimateKey;
+
   /// Stable id, used so the same alert is not notified twice.
   String get id => '${type.name}_${region.id}_${summary?.year ?? ''}'
-      '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}';
+      '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}_${estimateKey ?? ''}';
 }
 
 /// Turns the harmonized record into early-warning alerts.

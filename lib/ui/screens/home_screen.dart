@@ -7,6 +7,7 @@ import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../brand/ember_logo.dart';
+import '../widgets/burn_planner_card.dart';
 import '../widgets/common.dart';
 import '../widgets/fire_rings.dart';
 import '../widgets/fire_weather_card.dart';
@@ -166,6 +167,8 @@ class _HomeBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FireWeatherCard(record: record, point: weatherPoint),
+        const SizedBox(height: 16),
+        BurnPlannerCard(record: record, point: weatherPoint),
         const SizedBox(height: 16),
         _EvidenceCard(record.evidence),
         const SizedBox(height: 12),

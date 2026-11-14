@@ -9,7 +9,9 @@ import '../../data/models/hotspot.dart';
 import '../../l10n/strings.dart';
 import '../../services/report_store.dart';
 import '../../state/app_state.dart';
+import '../../services/triangulation.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/compass_aim.dart';
 import 'map_screen.dart' show labelIcon;
 
 /// Field verification: photo + GPS + "what do you see?".
@@ -28,6 +30,7 @@ class _ReportScreenState extends State<ReportScreen> {
   final _note = TextEditingController();
   final _picker = ImagePicker();
   ReportLabel? _label;
+  double? _bearing;
   String? _photoPath;
   LatLng? _position;
   bool _locating = true;
@@ -85,6 +88,7 @@ class _ReportScreenState extends State<ReportScreen> {
       photoPath: photo,
       hotspotSensor: widget.hotspot?.sensor,
       hotspotTime: widget.hotspot?.acquiredAt,
+      bearing: _bearing,
     ));
     messenger.showSnackBar(SnackBar(content: Text(s.t('report_saved'))));
     nav.pop();
@@ -154,6 +158,37 @@ class _ReportScreenState extends State<ReportScreen> {
                   onSelected: (_) => setState(() => _label = l),
                 ),
             ],
+          ),
+          const SizedBox(height: 16),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Ember.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _label == ReportLabel.smoke ? Ember.amber : Ember.outline,
+                width: _label == ReportLabel.smoke ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.explore_outlined, color: Ember.amber, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(s.t('compass_title'),
+                        style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                CompassAim(
+                  locked: _bearing,
+                  onChanged: (b) => setState(() => _bearing = b),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -229,7 +264,28 @@ class ReportsListScreen extends StatelessWidget {
     final state = AppScope.of(context);
     final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(s.t('my_reports'))),
+      appBar: AppBar(
+        title: Text(s.t('my_reports')),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (_) async {
+              final messenger = ScaffoldMessenger.of(context);
+              await state.addReports(demoSmokeReports());
+              messenger.showSnackBar(SnackBar(content: Text(s.t('demo_smoke_done'))));
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'demo',
+                child: ListTile(
+                  leading: const Icon(Icons.science_outlined),
+                  title: Text(s.t('demo_smoke')),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: state.reports.isEmpty
           ? Center(
               child: Padding(
@@ -259,6 +315,7 @@ class ReportsListScreen extends StatelessWidget {
                         '${r.createdAt.toLocal().toString().substring(0, 16)}\n'
                         '${r.position.latitude.toStringAsFixed(4)}, '
                         '${r.position.longitude.toStringAsFixed(4)}'
+                        '${r.bearing == null ? '' : ' · ${r.bearing!.round()}°'}'
                         '${r.note.isEmpty ? '' : '\n${r.note}'}',
                         style: monoStyle(size: 11),
                       ),

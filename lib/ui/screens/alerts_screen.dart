@@ -6,6 +6,7 @@ import '../../data/models/region.dart';
 import '../../domain/anomaly.dart';
 import '../../l10n/strings.dart';
 import '../../services/alert_engine.dart';
+import '../../services/background_checks.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -52,6 +53,14 @@ class AlertsScreen extends StatelessWidget {
               icon: const Icon(Icons.notifications_active_outlined),
               label: Text(s.t('check_notify')),
             ),
+            if (BackgroundChecks.supported)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: state.backgroundChecks,
+                onChanged: state.setBackgroundChecks,
+                title: Text(s.t('background_checks')),
+                subtitle: Text(s.t('background_checks_sub'), style: monoStyle(size: 11)),
+              ),
             const SizedBox(height: 20),
             Text(s.t('active_alerts'), style: text.titleLarge?.copyWith(fontSize: 18)),
             const SizedBox(height: 8),
@@ -91,6 +100,12 @@ class AlertsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
+            const SizedBox(height: 12),
+            Row(children: [
+              const Icon(Icons.explore_outlined, size: 18, color: Ember.amber),
+              const SizedBox(width: 8),
+              Expanded(child: Text(s.t('smoke_tip'), style: monoStyle(size: 11))),
+            ]),
             const SizedBox(height: 20),
             const _EmergencyCard(),
           ],
@@ -119,6 +134,7 @@ class _AlertTile extends StatelessWidget {
       AlertType.inSeason => Icons.local_fire_department_outlined,
       AlertType.nearbyHotspot => Icons.near_me,
       AlertType.detections => Icons.satellite_alt_outlined,
+      AlertType.groundSmoke => Icons.explore_outlined,
     };
     return Card(
       clipBehavior: Clip.antiAlias,

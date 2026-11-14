@@ -7,9 +7,11 @@ import '../data/models/region.dart';
 import '../data/repositories/fire_repository.dart';
 import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
+import '../services/background_checks.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/report_store.dart';
+import '../services/triangulation.dart';
 import '../services/weather_service.dart';
 
 /// App-wide state. Kept dependency-free on purpose (ChangeNotifier only).
@@ -48,6 +50,9 @@ class AppState extends ChangeNotifier {
 
   // Near me.
   LatLng? userPosition;
+
+  /// Last GPS fix, saved so background checks know where the user is.
+  LatLng? lastKnownPosition;
   RegionMatch? userRegion;
   bool locating = false;
   String? locationError; // l10n key
@@ -59,16 +64,29 @@ class AppState extends ChangeNotifier {
   // Field reports.
   List<FieldReport> reports = const [];
 
+  /// Fires located by crossing the compass lines of smoke reports.
+  List<SmokeEstimate> smokeEstimates = const [];
+
+  /// Periodic checks while the app is closed (Android).
+  bool backgroundChecks = true;
+
   static const _kWatch = 'watchlist',
       _kLang = 'language',
       _kNotified = 'notified_alerts',
-      _kOnboarded = 'onboarded';
+      _kOnboarded = 'onboarded',
+      _kBackground = 'background_checks',
+      _kLastLat = 'last_lat',
+      _kLastLon = 'last_lon';
 
-  Future<void> init() async {
+  Future<void> init({bool checkOnStart = true}) async {
     watchlist = (_prefs.getStringList(_kWatch) ?? ['lebanon']).toSet();
     languageCode = _prefs.getString(_kLang) ?? 'en';
     onboarded = _prefs.getBool(_kOnboarded) ?? false;
     reports = reportStore.load();
+    smokeEstimates = triangulate(reports);
+    backgroundChecks = _prefs.getBool(_kBackground) ?? true;
+    final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
+    if (lat != null && lon != null) lastKnownPosition = LatLng(lat, lon);
     try {
       regions = await repository.getRegions();
       selected = regions.firstWhere(
@@ -80,7 +98,7 @@ class AppState extends ChangeNotifier {
     }
     loading = false;
     notifyListeners();
-    if (error == null) {
+    if (error == null && checkOnStart) {
       // Background check on launch: notify only alerts not seen before.
       checkAlerts(notify: true, onlyNew: true);
     }
@@ -120,6 +138,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       userPosition = await location.currentPosition();
+      lastKnownPosition = userPosition;
+      _prefs.setDouble(_kLastLat, userPosition!.latitude);
+      _prefs.setDouble(_kLastLon, userPosition!.longitude);
       userRegion = matchRegion(regions, userPosition!);
       if (userRegion != null) selected = userRegion!.region;
     } on LocationException catch (e) {
@@ -147,17 +168,48 @@ class AppState extends ChangeNotifier {
           record: record,
           hotspots: spots,
           now: DateTime.now(),
-          user: userPosition,
+          user: userPosition ?? lastKnownPosition,
         ));
       } catch (_) {
         // One region failing should not hide the others.
       }
     }
+    found.addAll(_smokeAlerts(ids));
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
     alerts = found;
     checkingAlerts = false;
     notifyListeners();
     if (notify) await _notify(found, onlyNew: onlyNew);
+  }
+
+  /// Fires located from ground reports, near the user or in a watched place.
+  List<FireAlert> _smokeAlerts(Set<String> watchedIds) {
+    final me = userPosition ?? lastKnownPosition;
+    final out = <FireAlert>[];
+    for (final e in smokeEstimates) {
+      final match = matchRegion(regions, e.center);
+      if (match == null) continue;
+      final d = me == null ? null : distanceKm(me, e.center);
+      final near = d != null && d <= alertEngine.nearbyKm;
+      if (!near && !(match.inside && watchedIds.contains(match.region.id))) continue;
+      out.add(FireAlert(
+        type: AlertType.groundSmoke,
+        level: near ? AlertLevel.danger : AlertLevel.warning,
+        region: match.region,
+        count: e.reports.length,
+        distanceKm: d,
+        compass: me == null ? null : compassIndex(me, e.center),
+        estimateKey: '${e.center.latitude.toStringAsFixed(2)},${e.center.longitude.toStringAsFixed(2)}',
+      ));
+    }
+    return out;
+  }
+
+  Future<void> setBackgroundChecks(bool enabled) async {
+    backgroundChecks = enabled;
+    notifyListeners();
+    await _prefs.setBool(_kBackground, enabled);
+    await BackgroundChecks.setEnabled(enabled);
   }
 
   Future<void> _notify(List<FireAlert> list, {required bool onlyNew}) async {
@@ -179,16 +231,24 @@ class AppState extends ChangeNotifier {
     await _prefs.setStringList(_kNotified, {...seen, ...toSend.map((a) => a.id)}.toList());
   }
 
-  Future<void> addReport(FieldReport report) async {
-    reports = [report, ...reports];
-    await reportStore.save(reports);
-    notifyListeners();
+  Future<void> addReport(FieldReport report) => addReports([report]);
+
+  Future<void> addReports(List<FieldReport> added) async {
+    reports = [...added, ...reports];
+    await _reportsChanged();
   }
 
   Future<void> deleteReport(String id) async {
     reports = reports.where((r) => r.id != id).toList();
+    await _reportsChanged();
+  }
+
+  Future<void> _reportsChanged() async {
+    smokeEstimates = triangulate(reports);
     await reportStore.save(reports);
     notifyListeners();
+    // A new crossing may be close to the user: check and notify right away.
+    if (smokeEstimates.isNotEmpty) await checkAlerts(notify: true, onlyNew: true);
   }
 }
 

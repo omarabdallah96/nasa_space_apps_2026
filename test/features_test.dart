@@ -166,7 +166,7 @@ void main() {
         'why_critical_period', 'why_raining',
         'loc_off', 'loc_denied', 'loc_failed',
         'label_wildfire', 'label_agriculturalBurn', 'label_industrial',
-        'label_falseAlarm', 'label_unsure',
+        'label_falseAlarm', 'label_unsure', 'label_smoke',
       ]);
       expect(used.difference(S.englishKeys), isEmpty, reason: 'missing English');
       expect(used.difference(S.arabicKeys), isEmpty, reason: 'missing Arabic');

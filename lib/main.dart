@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'data/repositories/api_fire_repository.dart';
-import 'data/repositories/fire_repository.dart';
-import 'data/repositories/mock_fire_repository.dart';
+import 'config.dart';
+import 'services/background_checks.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'ui/screens/splash_screen.dart';
 
-/// Flip to false once the backend serves docs/api_contract.md.
-const useMockData = true;
-const apiBaseUrl = 'https://example.com/ember-almanac';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
-  final FireRepository repository =
-      useMockData ? MockFireRepository() : ApiFireRepository(baseUrl: apiBaseUrl);
-  final state = AppState(repository, prefs: prefs);
+  final state = AppState(createRepository(), prefs: prefs);
   await state.notifications.init();
+  // Periodic alert checks while the app is closed (Android).
+  try {
+    await BackgroundChecks.init();
+    await BackgroundChecks.setEnabled(prefs.getBool('background_checks') ?? true);
+  } catch (_) {
+    // Never block app start on background scheduling.
+  }
   runApp(EmberAlmanacApp(state: state..init()));
 }
 

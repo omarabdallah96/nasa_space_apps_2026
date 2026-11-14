@@ -3,7 +3,7 @@
 The mobile app reads three JSON documents. The mock files in `assets/mock/`
 follow this contract exactly. When the backend (or the web app's Node
 pipeline) produces the same shapes, the app switches over with one flag
-(`useMockData` in `lib/main.dart`) and no other changes.
+(`useMockData` in `lib/config.dart`) and no other changes.
 
 Static hosting works: these can be plain files on any CDN.
 

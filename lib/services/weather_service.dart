@@ -49,6 +49,54 @@ class WeatherService {
     }
     return FireWeather.fromOpenMeteo(jsonDecode(res.body) as Map<String, dynamic>);
   }
+
+  /// Daily forecast for the next [days] days: the worst burning conditions
+  /// of each day (max wind, max gusts, min humidity, max temperature).
+  Future<List<DayForecast>> forecast(LatLng p, {int days = 7}) async {
+    final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
+      'latitude': p.latitude.toStringAsFixed(3),
+      'longitude': p.longitude.toStringAsFixed(3),
+      'daily': 'temperature_2m_max,relative_humidity_2m_min,wind_speed_10m_max,'
+          'wind_gusts_10m_max,precipitation_sum',
+      'wind_speed_unit': 'kmh',
+      'timezone': 'auto',
+      'forecast_days': '$days',
+    });
+    final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      throw Exception('Open-Meteo ${res.statusCode}');
+    }
+    return DayForecast.listFromOpenMeteo(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+}
+
+class DayForecast {
+  const DayForecast(this.date, this.weather);
+  final DateTime date;
+  final FireWeather weather;
+
+  static List<DayForecast> listFromOpenMeteo(Map<String, dynamic> json) {
+    final d = json['daily'] as Map<String, dynamic>;
+    List<double> col(String k) =>
+        (d[k] as List).map((v) => (v as num?)?.toDouble() ?? 0).toList();
+    final dates = (d['time'] as List).cast<String>();
+    final temp = col('temperature_2m_max'), hum = col('relative_humidity_2m_min');
+    final wind = col('wind_speed_10m_max'), gust = col('wind_gusts_10m_max');
+    final rain = col('precipitation_sum');
+    return [
+      for (var i = 0; i < dates.length; i++)
+        DayForecast(
+          DateTime.parse(dates[i]),
+          FireWeather(
+            temperatureC: temp[i],
+            humidity: hum[i],
+            windKmh: wind[i],
+            gustKmh: gust[i],
+            precipitationMm: rain[i],
+          ),
+        ),
+    ];
+  }
 }
 
 enum BurnLevel { safe, caution, unsafe }
@@ -89,7 +137,7 @@ BurnAdvice burnAdvice({
 
   final status = summarize(record).status;
   if (status == FireStatus.extreme || status == FireStatus.above) {
-    unsafe.add('why_anomaly');
+    caution.add('why_anomaly');
   }
   if (criticalMonths(record).contains(now.month)) {
     unsafe.add('why_critical_period');
@@ -106,4 +154,43 @@ BurnAdvice burnAdvice({
           ? BurnLevel.caution
           : BurnLevel.safe;
   return BurnAdvice(level, [...unsafe, ...caution], quietMonths);
+}
+
+class DayPlan {
+  const DayPlan(this.day, this.advice, this.score);
+  final DayForecast day;
+  final BurnAdvice advice;
+
+  /// Lower = better day to burn. Unsafe days get infinity.
+  final double score;
+}
+
+class BurnPlan {
+  const BurnPlan(this.days, this.best);
+  final List<DayPlan> days;
+
+  /// The best day that is not unsafe, or null if there is none.
+  final DayPlan? best;
+}
+
+/// Ranks the coming days for an agricultural burn.
+BurnPlan planBurns(List<DayForecast> forecast, FireRecord record) {
+  final days = [
+    for (final d in forecast)
+      () {
+        final advice = burnAdvice(weather: d.weather, record: record, now: d.date);
+        final w = d.weather;
+        final score = advice.level == BurnLevel.unsafe
+            ? double.infinity
+            : w.windKmh +
+                0.5 * w.gustKmh +
+                1.5 * (50 - w.humidity).clamp(0, 50) +
+                2 * (w.temperatureC - 25).clamp(0, 20) +
+                (w.precipitationMm > 0.5 ? 30 : 0);
+        return DayPlan(d, advice, score);
+      }(),
+  ];
+  final candidates = days.where((d) => d.score.isFinite).toList()
+    ..sort((a, b) => a.score.compareTo(b.score));
+  return BurnPlan(days, candidates.isEmpty ? null : candidates.first);
 }

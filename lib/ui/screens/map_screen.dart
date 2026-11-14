@@ -5,7 +5,9 @@ import 'package:latlong2/latlong.dart';
 import '../../data/models/hotspot.dart';
 import '../../data/models/region.dart';
 import '../../l10n/strings.dart';
+import '../../services/location_service.dart';
 import '../../services/report_store.dart';
+import '../../services/triangulation.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -108,8 +110,54 @@ class _MapScreenState extends State<MapScreen> {
                           maxNativeZoom: 9,
                           userAgentPackageName: 'com.example.nasa_space_apps_2026',
                         ),
+                        // Compass lines from smoke reports.
+                        PolylineLayer(
+                          polylines: [
+                            for (final r in state.reports)
+                              if (r.bearing != null)
+                                Polyline(
+                                  points: [r.position, project(r.position, r.bearing!, 30)],
+                                  strokeWidth: 2,
+                                  color: Ember.amber.withValues(alpha: 0.85),
+                                  pattern: StrokePattern.dashed(segments: const [8, 6]),
+                                ),
+                          ],
+                        ),
+                        // Estimated fire: uncertainty circle.
+                        CircleLayer(
+                          circles: [
+                            for (final e in state.smokeEstimates)
+                              CircleMarker(
+                                point: e.center,
+                                radius: e.radiusKm * 1000,
+                                useRadiusInMeter: true,
+                                color: Ember.extreme.withValues(alpha: 0.18),
+                                borderColor: Ember.extreme,
+                                borderStrokeWidth: 2,
+                              ),
+                          ],
+                        ),
                         MarkerLayer(
                           markers: [
+                            for (final e in state.smokeEstimates)
+                              Marker(
+                                point: e.center,
+                                width: 40,
+                                height: 40,
+                                child: GestureDetector(
+                                  onTap: () => _showEstimate(context, e, spots),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Ember.extreme,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                      boxShadow: const [BoxShadow(blurRadius: 8)],
+                                    ),
+                                    child: const Icon(Icons.local_fire_department,
+                                        color: Colors.white, size: 22),
+                                  ),
+                                ),
+                              ),
                             for (final h in spots)
                               Marker(
                                 point: h.position,
@@ -188,6 +236,46 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _showEstimate(BuildContext context, SmokeEstimate e, List<Hotspot> spots) {
+    final s = S.of(context);
+    final near = nearestHotspot(spots, e.center);
+    final confirmed = near != null && near.distanceKm <= e.radiusKm + 2;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Ember.surface,
+      builder: (sheet) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.local_fire_department, color: Ember.extreme),
+              const SizedBox(width: 8),
+              Text(s.t('smoke_estimate'), style: Theme.of(sheet).textTheme.titleLarge),
+            ]),
+            const SizedBox(height: 10),
+            Text('${e.reports.length} ${s.t('from_reports')} · '
+                '${s.t('uncertainty')} ±${e.radiusKm.toStringAsFixed(1)} km',
+                style: monoStyle(size: 13, color: Ember.text)),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Text(
+                '${e.center.latitude.toStringAsFixed(4)}, ${e.center.longitude.toStringAsFixed(4)}',
+                style: monoStyle(size: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            StatusPill(
+              label: confirmed ? s.t('satellite_confirms') : s.t('not_seen_satellite'),
+              color: confirmed ? Ember.amber : Ember.extreme,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showHotspot(BuildContext context, Hotspot h) {
     final s = S.of(context);
     showModalBottomSheet<void>(
@@ -235,6 +323,7 @@ class _MapScreenState extends State<MapScreen> {
 
 IconData _labelIcon(ReportLabel l) => switch (l) {
       ReportLabel.wildfire => Icons.local_fire_department,
+      ReportLabel.smoke => Icons.cloud_outlined,
       ReportLabel.agriculturalBurn => Icons.agriculture,
       ReportLabel.industrial => Icons.factory_outlined,
       ReportLabel.falseAlarm => Icons.do_not_disturb_on_outlined,

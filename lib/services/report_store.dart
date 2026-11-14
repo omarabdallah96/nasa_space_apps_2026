@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// What the person on the ground saw at a hotspot.
-enum ReportLabel { wildfire, agriculturalBurn, industrial, falseAlarm, unsure }
+enum ReportLabel { wildfire, smoke, agriculturalBurn, industrial, falseAlarm, unsure }
 
 /// A ground-truth report: photo + GPS + label. Stored on the phone for now;
 /// later uploaded so satellite detections can be checked against the ground.
@@ -21,6 +21,7 @@ class FieldReport {
     this.photoPath,
     this.hotspotSensor,
     this.hotspotTime,
+    this.bearing,
   });
 
   final String id;
@@ -32,6 +33,10 @@ class FieldReport {
   final String? hotspotSensor;
   final DateTime? hotspotTime;
 
+  /// Compass direction the reporter pointed at the smoke (degrees from
+  /// north). Used to triangulate the fire from several reports.
+  final double? bearing;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'lat': position.latitude,
@@ -42,6 +47,7 @@ class FieldReport {
         'photoPath': photoPath,
         'hotspotSensor': hotspotSensor,
         'hotspotTime': hotspotTime?.toIso8601String(),
+        'bearing': bearing,
       };
 
   factory FieldReport.fromJson(Map<String, dynamic> j) => FieldReport(
@@ -56,6 +62,7 @@ class FieldReport {
         hotspotTime: j['hotspotTime'] == null
             ? null
             : DateTime.parse(j['hotspotTime'] as String),
+        bearing: (j['bearing'] as num?)?.toDouble(),
       );
 }
 

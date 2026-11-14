@@ -31,6 +31,15 @@ class S {
 
   String ratio(double r) => '${r.toStringAsFixed(1)}×';
 
+  /// [weekday] is DateTime.weekday (1 = Monday).
+  String weekday(int weekday) => (ar ? _daysAr : _daysEn)[weekday - 1];
+  String weekdayShort(int weekday) => (ar ? _daysArShort : _daysEnShort)[weekday - 1];
+
+  static const _daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  static const _daysEnShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _daysAr = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+  static const _daysArShort = ['إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت', 'أحد'];
+
   /// The one-sentence answer.
   String sentence(AnomalySummary s, Region r) {
     if (!ar) return s.sentence(r.name);
@@ -59,6 +68,7 @@ class S {
       AlertType.inSeason => ar ? '$place: ذروة موسم الحرائق' : '$place: peak fire season',
       AlertType.nearbyHotspot => ar ? 'رصد حريق بالقرب منك' : 'Fire detected near you',
       AlertType.detections => ar ? '$place: رصد بالأقمار الصناعية' : '$place: new satellite detections',
+      AlertType.groundSmoke => ar ? '$place: حريق حدّده بلاغات ميدانية' : '$place: fire located from ground reports',
     };
   }
 
@@ -84,6 +94,15 @@ class S {
         return ar
             ? 'رُصدت بؤرة حرارية على بعد $d كم باتجاه ${compass(a.compass!)} خلال آخر 48 ساعة.'
             : 'A hotspot was detected $d km ${compass(a.compass!)} of you in the last 48 h.';
+      case AlertType.groundSmoke:
+        final where = a.distanceKm == null
+            ? ''
+            : ar
+                ? ' على بعد ${a.distanceKm!.toStringAsFixed(1)} كم باتجاه ${compass(a.compass!)}'
+                : ' ${a.distanceKm!.toStringAsFixed(1)} km ${compass(a.compass!)} of you';
+        return ar
+            ? '${a.count} بلاغات دخان تتقاطع عند حريق محتمل$where.'
+            : '${a.count} smoke reports cross at a likely fire$where.';
       case AlertType.detections:
         return ar
             ? '${a.count} بؤرة حرارية مؤكدة في آخر 48 ساعة.'
@@ -252,6 +271,33 @@ class S {
     'allow_location': 'Allow location',
     'allow_notifications': 'Allow notifications',
     'allowed': 'Allowed',
+    // Smoke triangulation
+    'label_smoke': 'Smoke in the distance',
+    'compass_title': 'Point your phone at the smoke',
+    'compass_hint': 'Hold the phone flat with the top edge toward the smoke, then lock the direction. Reports from two different places locate the fire.',
+    'lock_direction': 'Lock direction',
+    're_aim': 'Re-aim',
+    'direction': 'Direction',
+    'locked': 'locked',
+    'no_compass': 'No compass on this device',
+    'smoke_estimate': 'Estimated fire location',
+    'from_reports': 'ground reports',
+    'uncertainty': 'Uncertainty',
+    'not_seen_satellite': 'Not seen by satellite yet: early detection from the ground.',
+    'satellite_confirms': 'A satellite hotspot is nearby',
+    'demo_smoke': 'Simulate smoke reports (demo)',
+    'demo_smoke_done': '3 demo smoke reports added. Open the map to see where they cross.',
+    'smoke_tip': 'Saw smoke? Report it with the compass from two places, or ask a neighbour to: the lines cross at the fire.',
+    // Background checks
+    'background_checks': 'Background checks',
+    'background_checks_sub': 'Check watched places every 3 hours, even when the app is closed',
+    // Burn planner
+    'burn_planner': 'Burn planner',
+    'burn_planner_sub': 'Next 7 days',
+    'best_day': 'Best day to burn this week',
+    'no_safe_day': 'No safe day to burn this week',
+    'today': 'Today',
+    'forecast_failed': 'Forecast unavailable (needs internet)',
   };
 
   static const _ar = <String, String>{
@@ -401,6 +447,30 @@ class S {
     'allow_location': 'اسمح بالموقع',
     'allow_notifications': 'اسمح بالإشعارات',
     'allowed': 'مسموح',
+    'label_smoke': 'دخان من بعيد',
+    'compass_title': 'وجّه هاتفك نحو الدخان',
+    'compass_hint': 'أمسك الهاتف أفقياً وطرفه العلوي باتجاه الدخان، ثم ثبّت الاتجاه. بلاغان من مكانين مختلفين يحدّدان موقع الحريق.',
+    'lock_direction': 'ثبّت الاتجاه',
+    're_aim': 'أعد التوجيه',
+    'direction': 'الاتجاه',
+    'locked': 'مثبّت',
+    'no_compass': 'لا توجد بوصلة في هذا الجهاز',
+    'smoke_estimate': 'الموقع المقدّر للحريق',
+    'from_reports': 'بلاغات ميدانية',
+    'uncertainty': 'هامش الخطأ',
+    'not_seen_satellite': 'لم يرصده القمر الصناعي بعد — اكتشاف مبكر من الأرض.',
+    'satellite_confirms': 'توجد بؤرة مرصودة بالقمر الصناعي قريبة',
+    'demo_smoke': 'محاكاة بلاغات دخان (تجربة)',
+    'demo_smoke_done': 'أُضيفت 3 بلاغات دخان تجريبية. افتح الخريطة لترى أين تتقاطع.',
+    'smoke_tip': 'رأيت دخاناً؟ أبلغ عنه بالبوصلة من مكانين، أو اطلب من جارك ذلك: الخطوط تتقاطع عند الحريق.',
+    'background_checks': 'الفحص في الخلفية',
+    'background_checks_sub': 'افحص الأماكن المتابَعة كل 3 ساعات، حتى عندما يكون التطبيق مغلقاً',
+    'burn_planner': 'مخطط الحرق',
+    'burn_planner_sub': 'الأيام السبعة القادمة',
+    'best_day': 'أفضل يوم للحرق هذا الأسبوع',
+    'no_safe_day': 'لا يوجد يوم آمن للحرق هذا الأسبوع',
+    'today': 'اليوم',
+    'forecast_failed': 'التوقعات غير متوفرة (تحتاج إلى إنترنت)',
   };
 
   /// For tests.
