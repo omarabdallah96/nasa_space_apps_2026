@@ -1,6 +1,7 @@
 import 'data/repositories/api_fire_repository.dart';
 import 'data/repositories/fire_repository.dart';
 import 'data/repositories/mock_fire_repository.dart';
+import 'services/report_api.dart';
 
 /// Live data from the Firesight backend. Build with
 /// `--dart-define=USE_MOCK=true` to use the bundled demo data instead, or
@@ -14,3 +15,6 @@ const apiBaseUrl = String.fromEnvironment(
 /// Used by the app and by the background alert check.
 FireRepository createRepository() =>
     useMockData ? MockFireRepository() : ApiFireRepository(baseUrl: apiBaseUrl);
+
+/// Shares field reports with other phones; demo mode keeps them on the phone.
+ReportApi? createReportApi() => useMockData ? null : ReportApi(baseUrl: apiBaseUrl);

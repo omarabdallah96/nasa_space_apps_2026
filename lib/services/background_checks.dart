@@ -35,6 +35,7 @@ Future<void> runBackgroundCheck({
     repository ?? createRepository(),
     prefs: prefs,
     notifications: notifications,
+    reportApi: repository == null ? createReportApi() : null,
   );
   await state.init(checkOnStart: false);
   await state.checkAlerts(notify: true, onlyNew: true);

@@ -22,6 +22,8 @@ class FieldReport {
     this.hotspotSensor,
     this.hotspotTime,
     this.bearing,
+    this.remoteId,
+    this.deleteToken,
   });
 
   final String id;
@@ -37,6 +39,28 @@ class FieldReport {
   /// north). Used to triangulate the fire from several reports.
   final double? bearing;
 
+  /// The backend's id once uploaded (null = not sent yet).
+  final String? remoteId;
+
+  /// Lets this phone delete its own report from the backend.
+  final String? deleteToken;
+
+  bool get uploaded => remoteId != null;
+
+  FieldReport withRemote(String remoteId, String? deleteToken) => FieldReport(
+        id: id,
+        position: position,
+        createdAt: createdAt,
+        label: label,
+        note: note,
+        photoPath: photoPath,
+        hotspotSensor: hotspotSensor,
+        hotspotTime: hotspotTime,
+        bearing: bearing,
+        remoteId: remoteId,
+        deleteToken: deleteToken,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'lat': position.latitude,
@@ -48,6 +72,8 @@ class FieldReport {
         'hotspotSensor': hotspotSensor,
         'hotspotTime': hotspotTime?.toIso8601String(),
         'bearing': bearing,
+        'remoteId': remoteId,
+        'deleteToken': deleteToken,
       };
 
   factory FieldReport.fromJson(Map<String, dynamic> j) => FieldReport(
@@ -63,6 +89,8 @@ class FieldReport {
             ? null
             : DateTime.parse(j['hotspotTime'] as String),
         bearing: (j['bearing'] as num?)?.toDouble(),
+        remoteId: j['remoteId'] as String?,
+        deleteToken: j['deleteToken'] as String?,
       );
 }
 

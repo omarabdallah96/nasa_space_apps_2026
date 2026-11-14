@@ -11,7 +11,7 @@ import 'ui/screens/splash_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
-  final state = AppState(createRepository(), prefs: prefs);
+  final state = AppState(createRepository(), prefs: prefs, reportApi: createReportApi());
   await state.notifications.init();
   // Periodic alert checks while the app is closed (Android).
   try {

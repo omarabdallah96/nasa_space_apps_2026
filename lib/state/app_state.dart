@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:latlong2/latlong.dart';
@@ -10,6 +12,7 @@ import '../services/alert_engine.dart';
 import '../services/background_checks.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
+import '../services/report_api.dart';
 import '../services/report_store.dart';
 import '../services/triangulation.dart';
 import '../services/weather_service.dart';
@@ -23,6 +26,7 @@ class AppState extends ChangeNotifier {
     NotificationService? notifications,
     WeatherService? weather,
     this.alertEngine = const AlertEngine(),
+    this.reportApi,
   })  : _prefs = prefs,
         notifications = notifications ?? NotificationService(),
         weather = weather ?? WeatherService(),
@@ -35,6 +39,9 @@ class AppState extends ChangeNotifier {
   final WeatherService weather;
   final AlertEngine alertEngine;
   final ReportStore reportStore;
+
+  /// Shares reports through the backend; null keeps them on this phone only.
+  final ReportApi? reportApi;
 
   List<Region> regions = const [];
   Region? selected;
@@ -67,6 +74,9 @@ class AppState extends ChangeNotifier {
   // Field reports.
   List<FieldReport> reports = const [];
 
+  /// Recent reports other people sent, from the backend.
+  List<FieldReport> sharedReports = const [];
+
   /// Fires located by crossing the compass lines of smoke reports.
   List<SmokeEstimate> smokeEstimates = const [];
 
@@ -80,7 +90,57 @@ class AppState extends ChangeNotifier {
       _kOnboarded = 'onboarded',
       _kBackground = 'background_checks',
       _kLastLat = 'last_lat',
-      _kLastLon = 'last_lon';
+      _kLastLon = 'last_lon',
+      _kDeviceId = 'device_id';
+
+  /// Random id for this install, so the backend can tell a retry from a new
+  /// report. Not tied to the person or the hardware.
+  String get _deviceId {
+    var id = _prefs.getString(_kDeviceId);
+    if (id == null) {
+      final r = math.Random.secure();
+      id = List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+      _prefs.setString(_kDeviceId, id);
+    }
+    return id;
+  }
+
+  /// Everything triangulation can use: this phone's reports and everyone else's.
+  List<FieldReport> get _allReports {
+    final mine = reports.map((r) => r.remoteId).whereType<String>().toSet();
+    return [...reports, ...sharedReports.where((r) => !mine.contains(r.remoteId))];
+  }
+
+  /// Sends reports not uploaded yet, then downloads recent ones from others.
+  /// Failures are ignored: the next check tries again.
+  Future<void> syncReports() async {
+    final api = reportApi;
+    if (api == null) return;
+    final sent = <String, FieldReport>{};
+    for (final r in reports.where((r) => !r.uploaded).toList()) {
+      try {
+        final res = await api.upload(r, _deviceId);
+        sent[r.id] = r.withRemote(res.id, res.deleteToken);
+      } catch (_) {
+        // Offline or rejected: stays queued.
+      }
+    }
+    if (sent.isNotEmpty) {
+      // Map over the current list: reports may have been added or deleted meanwhile.
+      reports = [for (final r in reports) sent[r.id] ?? r];
+      await reportStore.save(reports);
+    }
+    final ids = {...watchlist, ?userRegion?.region.id};
+    if (ids.isEmpty) return;
+    try {
+      sharedReports = await api.nearby(
+          ids, DateTime.now().subtract(const Duration(hours: 24)));
+    } catch (_) {
+      return;
+    }
+    smokeEstimates = triangulate(_allReports);
+    notifyListeners();
+  }
 
   Future<void> init({bool checkOnStart = true}) async {
     watchlist = (_prefs.getStringList(_kWatch) ?? ['lebanon']).toSet();
@@ -169,6 +229,7 @@ class AppState extends ChangeNotifier {
   Future<void> checkAlerts({bool notify = false, bool onlyNew = false}) async {
     checkingAlerts = true;
     notifyListeners();
+    await syncReports();
     final ids = {...watchlist, ?userRegion?.region.id};
     final found = <FireAlert>[];
     for (final r in regions.where((r) => ids.contains(r.id))) {
@@ -251,16 +312,30 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteReport(String id) async {
+    final gone = reports.where((r) => r.id == id).toList();
     reports = reports.where((r) => r.id != id).toList();
-    await _reportsChanged();
+    await _reportsChanged(checkNow: false);
+    for (final r in gone) {
+      if (r.remoteId != null && r.deleteToken != null) {
+        try {
+          await reportApi?.delete(r.remoteId!, r.deleteToken!);
+        } catch (_) {
+          // Gone from this phone; the backend drops it after 90 days anyway.
+        }
+      }
+    }
   }
 
-  Future<void> _reportsChanged() async {
-    smokeEstimates = triangulate(reports);
+  Future<void> _reportsChanged({bool checkNow = true}) async {
+    smokeEstimates = triangulate(_allReports);
     await reportStore.save(reports);
     notifyListeners();
-    // A new crossing may be close to the user: check and notify right away.
-    if (smokeEstimates.isNotEmpty) await checkAlerts(notify: true, onlyNew: true);
+    if (!checkNow) return;
+    // Upload right away; a new crossing may be close to the user, so check
+    // and notify too.
+    if (reportApi != null || smokeEstimates.isNotEmpty) {
+      await checkAlerts(notify: true, onlyNew: true);
+    }
   }
 }
 

@@ -28,7 +28,7 @@ class ApiFireRepository implements FireRepository {
   /// True when the last response came from the offline cache.
   bool servedFromCache = false;
 
-  /// The backend has no Arabic names; these cover the packaged countries.
+  /// Used when an older backend sends no `nameAr`.
   static const _arabicNames = {
     'lebanon': 'لبنان',
     'portugal': 'البرتغال',
@@ -89,7 +89,7 @@ class ApiFireRepository implements FireRepository {
       return Region.fromJson({
         'id': slug,
         'name': c['name'],
-        'nameAr': _arabicNames[slug] ?? c['name'],
+        'nameAr': c['nameAr'] ?? _arabicNames[slug] ?? c['name'],
         'bbox': box,
         'center': [(box[1] + box[3]) / 2, (box[0] + box[2]) / 2],
       });
@@ -201,9 +201,18 @@ class ApiFireRepository implements FireRepository {
 
   @override
   Future<List<Hotspot>> getRecentHotspots(String regionId) async {
-    // Default window is the last 7 days of the record; keep the last 48 hours.
-    final json = await _get('countries/$regionId/hotspots');
-    return hotspotsFromApi(json);
+    // Live FIRMS near-real-time detections, minutes old.
+    try {
+      final json = await _get('countries/$regionId/live?hours=$_hotspotHours');
+      return (json['hotspots'] as List)
+          .map((e) => Hotspot.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      // No live feed (no FIRMS key, FIRMS down, nothing cached): the daily
+      // record, whose newest day is yesterday. Keep its last 48 hours.
+      final json = await _get('countries/$regionId/hotspots');
+      return hotspotsFromApi(json);
+    }
   }
 
   @visibleForTesting
