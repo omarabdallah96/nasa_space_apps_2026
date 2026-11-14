@@ -3,20 +3,35 @@ import 'package:flutter/material.dart';
 import '../../data/models/fire_record.dart';
 import '../../data/models/region.dart';
 import '../../domain/anomaly.dart';
+import '../../l10n/strings.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/fire_rings.dart';
+import '../widgets/fire_weather_card.dart';
+import '../widgets/near_me_card.dart';
 import '../widgets/season_chart.dart';
+import '../widgets/share_card.dart';
 
-/// "Is this fire season normal?" — the one-sentence answer, Fire Rings,
-/// season chart and evidence for the selected region.
+/// "Is this fire season normal?" — near me, the one-sentence answer,
+/// Fire Rings, season chart, fire weather and evidence.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final state = AppScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Ember Almanac')),
+      appBar: AppBar(
+        title: Text(s.t('app_name')),
+        actions: [
+          TextButton(
+            onPressed: () => state.setLanguage(s.ar ? 'en' : 'ar'),
+            child: Text(s.t('language'), style: const TextStyle(color: Ember.amber)),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           const RegionChips(),
@@ -39,22 +54,31 @@ class _HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final state = AppScope.of(context);
     final summary = summarize(record);
     final critical = criticalMonths(record);
     final text = Theme.of(context).textTheme;
     final statusColor = Ember.forStatus(summary.status);
 
+    // Weather at the user's position if they are in this region, else centre.
+    final user = state.userPosition;
+    final weatherPoint =
+        user != null && region.contains(user) ? user : region.center;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        const NearMeCard(),
+        const SizedBox(height: 16),
         // The answer.
         Card(
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                begin: AlignmentDirectional.topStart,
+                end: AlignmentDirectional.bottomEnd,
                 colors: [statusColor.withValues(alpha: 0.16), Colors.transparent],
               ),
             ),
@@ -64,24 +88,27 @@ class _HomeBody extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('Is this fire season normal?',
-                        style: text.labelLarge?.copyWith(color: Ember.textMuted)),
-                    const Spacer(),
-                    StatusPill(
-                      label: Ember.labelForStatus(summary.status),
-                      color: statusColor,
+                    Expanded(
+                      child: Text(s.t('question'),
+                          style: text.labelLarge?.copyWith(color: Ember.textMuted)),
                     ),
+                    StatusPill(label: s.status(summary.status), color: statusColor),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(summary.sentence(region.name),
-                    style: text.headlineSmall?.copyWith(height: 1.3)),
+                Text(s.sentence(summary, region),
+                    style: text.headlineSmall?.copyWith(height: 1.35)),
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    _Stat(label: 'This month', value: '${summary.value}'),
-                    _Stat(label: 'Usual', value: summary.median.round().toString()),
-                    _Stat(label: 'Rank', value: '#${summary.rank} / ${summary.yearsCompared}'),
+                    _Stat(label: s.t('this_month'), value: '${summary.value}'),
+                    _Stat(label: s.t('usual'), value: summary.median.round().toString()),
+                    _Stat(label: s.t('rank'), value: '#${summary.rank} / ${summary.yearsCompared}'),
+                    IconButton.filledTonal(
+                      tooltip: s.t('share'),
+                      onPressed: () => showShareCard(context, region, record),
+                      icon: const Icon(Icons.ios_share),
+                    ),
                   ],
                 ),
               ],
@@ -90,25 +117,39 @@ class _HomeBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         SectionCard(
-          title: 'Fire Rings',
-          subtitle: 'One ring per year, read it like a tree',
+          title: s.t('fire_rings'),
+          subtitle: s.t('fire_rings_sub'),
           child: Center(
             child: LayoutBuilder(
-              builder: (context, c) =>
-                  FireRings(record: record, size: c.maxWidth.clamp(200, 340)),
+              builder: (context, c) => FireRings(
+                record: record,
+                size: c.maxWidth.clamp(200, 340),
+                caption: s.t('rings_caption'),
+              ),
             ),
           ),
         ),
         const SizedBox(height: 16),
         SectionCard(
-          title: 'Season',
-          subtitle: 'Critical period: ${critical.map((m) => monthNames[m - 1]).join(', ')}',
-          child: SeasonChart(record: record),
+          title: s.t('season'),
+          subtitle:
+              '${s.t('critical_period')}: ${critical.map(s.month).join(s.ar ? '، ' : ', ')}',
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: SeasonChart(
+              record: record,
+              monthLabels: s.monthLetters,
+              rangeLabel: s.t('normal_range'),
+              medianLabel: s.t('median'),
+            ),
+          ),
         ),
+        const SizedBox(height: 16),
+        FireWeatherCard(record: record, point: weatherPoint),
         const SizedBox(height: 16),
         _EvidenceCard(record.evidence),
         const SizedBox(height: 12),
-        Text('Units: ${record.units}',
+        Text('${s.t('units')}: ${record.units}',
             style: monoStyle(size: 10), textAlign: TextAlign.center),
       ],
     );
@@ -138,22 +179,28 @@ class _EvidenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     String pct(double v) => '${(v * 100).round()}%';
     return SectionCard(
-      title: 'Evidence',
-      subtitle: 'How accurate is the stitching?',
+      title: s.t('evidence'),
+      subtitle: s.t('evidence_sub'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ErrorBar(label: 'Raw record', value: e.heldOutErrorRaw, color: Ember.ash),
+          _ErrorBar(label: s.t('raw_record'), value: e.heldOutErrorRaw, color: Ember.ash),
           const SizedBox(height: 8),
-          _ErrorBar(label: 'Harmonized', value: e.heldOutErrorHarmonized, color: Ember.ember),
+          _ErrorBar(label: s.t('harmonized'), value: e.heldOutErrorHarmonized, color: Ember.ember),
           const SizedBox(height: 12),
           Text(
-            'Yearly error on held-out years drops from ${pct(e.heldOutErrorRaw)} '
-            'to ${pct(e.heldOutErrorHarmonized)}. VIIRS sees '
-            '${e.ratio.toStringAsFixed(1)}× more fire cells than MODIS here '
-            '(overlap ${e.overlapFrom}–${e.overlapTo}).',
+            s.ar
+                ? 'ينخفض الخطأ السنوي في السنوات المحجوبة من ${pct(e.heldOutErrorRaw)} '
+                    'إلى ${pct(e.heldOutErrorHarmonized)}. يرصد VIIRS '
+                    '${s.ratio(e.ratio)} خلايا حريق أكثر من MODIS هنا '
+                    '(فترة التداخل ${e.overlapFrom}–${e.overlapTo}).'
+                : 'Yearly error on held-out years drops from ${pct(e.heldOutErrorRaw)} '
+                    'to ${pct(e.heldOutErrorHarmonized)}. VIIRS sees '
+                    '${s.ratio(e.ratio)} more fire cells than MODIS here '
+                    '(overlap ${e.overlapFrom}–${e.overlapTo}).',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -171,7 +218,7 @@ class _ErrorBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          SizedBox(width: 92, child: Text(label, style: monoStyle(size: 11))),
+          SizedBox(width: 96, child: Text(label, style: monoStyle(size: 11))),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -187,7 +234,7 @@ class _ErrorBar extends StatelessWidget {
             width: 44,
             child: Text('${(value * 100).round()}%',
                 style: monoStyle(size: 12, color: Ember.text),
-                textAlign: TextAlign.right),
+                textAlign: TextAlign.end),
           ),
         ],
       );

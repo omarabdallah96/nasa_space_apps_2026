@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/fire_record.dart';
 import '../../domain/anomaly.dart';
+import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/calendar_heatmap.dart';
 import '../widgets/common.dart';
@@ -19,8 +20,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Burning calendar')),
+      appBar: AppBar(title: Text(s.t('burning_calendar'))),
       body: Column(
         children: [
           const RegionChips(),
@@ -31,33 +33,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
                   SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Raw sensors')),
-                      ButtonSegment(value: true, label: Text('Harmonized')),
+                    segments: [
+                      ButtonSegment(value: false, label: Text(s.t('raw_sensors'))),
+                      ButtonSegment(value: true, label: Text(s.t('harmonized'))),
                     ],
                     selected: {_harmonized},
-                    onSelectionChanged: (s) => setState(() => _harmonized = s.first),
+                    onSelectionChanged: (v) => setState(() => _harmonized = v.first),
                   ),
                   const SizedBox(height: 16),
                   SectionCard(
-                    title: 'The seam',
-                    subtitle: _harmonized
-                        ? 'One fair record: MODIS years converted to VIIRS-equivalent'
-                        : 'Raw counts jump in 2012 — only because VIIRS has sharper eyes',
-                    child: YearlyBars(record: record, harmonized: _harmonized),
+                    title: s.t('the_seam'),
+                    subtitle: s.t(_harmonized ? 'seam_fixed' : 'seam_raw'),
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: YearlyBars(record: record, harmonized: _harmonized),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SectionCard(
                     title: '${record.firstYear}–${record.latestYear}',
-                    subtitle: 'Tap a month to see its numbers',
-                    child: CalendarHeatmap(
-                      record: record,
-                      harmonized: _harmonized,
-                      onCellTap: (c) => _showCell(context, record, c),
+                    subtitle: s.t('tap_month'),
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: CalendarHeatmap(
+                        record: record,
+                        harmonized: _harmonized,
+                        monthLabels: s.monthLetters,
+                        onCellTap: (c) => _showCell(context, record, c),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const _ScaleLegend(),
+                  _ScaleLegend(s),
                 ],
               ),
             ),
@@ -68,7 +75,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _showCell(BuildContext context, FireRecord record, MonthlyCount c) {
-    final s = summarize(record, year: c.year, month: c.month);
+    final s = S.of(context);
+    final sum = summarize(record, year: c.year, month: c.month);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Ember.surface,
@@ -80,22 +88,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
           children: [
             Row(
               children: [
-                Text('${monthNames[c.month - 1]} ${c.year}',
-                    style: Theme.of(context).textTheme.headlineSmall),
-                const Spacer(),
+                Expanded(
+                  child: Text('${s.month(c.month)} ${c.year}',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                ),
                 StatusPill(
-                  label: Ember.labelForStatus(s.status),
-                  color: Ember.forStatus(s.status),
+                  label: s.status(sum.status),
+                  color: Ember.forStatus(sum.status),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _row('Sensor', c.sensor == Sensor.modis ? 'MODIS' : 'VIIRS'),
-            _row('Raw count', '${c.raw}'),
-            _row('Harmonized', '${c.harmonized}'),
-            _row('Usual (median)', s.median.round().toString()),
-            _row('vs usual', '${s.ratio.toStringAsFixed(2)}×'),
-            _row('Rank', '#${s.rank} of ${s.yearsCompared}'),
+            _row(s.t('sensor'), c.sensor == Sensor.modis ? 'MODIS' : 'VIIRS'),
+            _row(s.t('raw_count'), '${c.raw}'),
+            _row(s.t('harmonized'), '${c.harmonized}'),
+            _row(s.t('usual_median'), sum.median.round().toString()),
+            _row(s.t('vs_usual'), '${sum.ratio.toStringAsFixed(2)}×'),
+            _row(s.t('rank'), '#${sum.rank} / ${sum.yearsCompared}'),
           ],
         ),
       ),
@@ -114,12 +123,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
 class _ScaleLegend extends StatelessWidget {
-  const _ScaleLegend();
+  const _ScaleLegend(this.s);
+  final S s;
 
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          Text('Less', style: monoStyle(size: 11)),
+          Text(s.t('less'), style: monoStyle(size: 11)),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
@@ -127,13 +137,15 @@ class _ScaleLegend extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
                 gradient: LinearGradient(
+                  begin: AlignmentDirectional.centerStart,
+                  end: AlignmentDirectional.centerEnd,
                   colors: [for (var i = 0; i <= 10; i++) Ember.heat(i / 10)],
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          Text('More fire', style: monoStyle(size: 11)),
+          Text(s.t('more_fire'), style: monoStyle(size: 11)),
         ],
       );
 }

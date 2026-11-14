@@ -106,7 +106,7 @@ class _FireWeatherCardState extends State<FireWeatherCard> {
               ),
               const SizedBox(height: 10),
               Text(
-                '${s.t('quiet_months')}: ${advice.quietMonths.map(s.month).join('، ')}',
+                '${s.t('quiet_months')}: ${advice.quietMonths.map(s.month).join(s.ar ? '، ' : ', ')}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Ember.textMuted),
               ),
               const SizedBox(height: 4),

@@ -4,11 +4,15 @@ import 'package:latlong2/latlong.dart';
 
 import '../../data/models/hotspot.dart';
 import '../../data/models/region.dart';
+import '../../l10n/strings.dart';
+import '../../services/report_store.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
+import 'report_screen.dart';
 
-/// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery.
+/// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery, plus
+/// the user's position and their field reports.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -30,9 +34,17 @@ class _MapScreenState extends State<MapScreen> {
   LatLngBounds _bounds(Region r) =>
       LatLngBounds(LatLng(r.south, r.west), LatLng(r.north, r.east));
 
+  Future<void> _goToMe() async {
+    final state = AppScope.read(context);
+    await state.locateMe();
+    final p = state.userPosition;
+    if (p != null && mounted) _map.move(p, 11);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final s = S.of(context);
     final region = state.selected!;
     if (region.id != _regionId) {
       final first = _regionId == null;
@@ -45,7 +57,28 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hotspots · last 48 h')),
+      appBar: AppBar(
+        title: Text(s.t('hotspots_48h')),
+        actions: [
+          IconButton(
+            tooltip: s.t('my_reports'),
+            icon: Badge(
+              isLabelVisible: state.reports.isNotEmpty,
+              label: Text('${state.reports.length}'),
+              child: const Icon(Icons.fact_check_outlined),
+            ),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute<void>(builder: (_) => const ReportsListScreen())),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'report',
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute<void>(builder: (_) => const ReportScreen())),
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: Text(s.t('report_fire')),
+      ),
       body: Column(
         children: [
           const RegionChips(),
@@ -87,6 +120,29 @@ class _MapScreenState extends State<MapScreen> {
                                   child: _HotspotDot(h),
                                 ),
                               ),
+                            for (final r in state.reports)
+                              Marker(
+                                point: r.position,
+                                width: 26,
+                                height: 26,
+                                child: Icon(_labelIcon(r.label),
+                                    color: Ember.calm, size: 22,
+                                    shadows: const [Shadow(blurRadius: 4)]),
+                              ),
+                            if (state.userPosition != null)
+                              Marker(
+                                point: state.userPosition!,
+                                width: 22,
+                                height: 22,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.lightBlueAccent,
+                                    border: Border.all(color: Colors.white, width: 3),
+                                    boxShadow: const [BoxShadow(blurRadius: 6)],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         const SimpleAttributionWidget(
@@ -94,7 +150,8 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ],
                     ),
-                    if (snap.connectionState == ConnectionState.waiting)
+                    if (snap.connectionState == ConnectionState.waiting ||
+                        state.locating)
                       const Positioned(
                         top: 0,
                         left: 0,
@@ -102,12 +159,23 @@ class _MapScreenState extends State<MapScreen> {
                         child: LinearProgressIndicator(color: Ember.ember),
                       ),
                     if (snap.hasError) ErrorView(error: snap.error!),
-                    Positioned(
-                      left: 12,
+                    PositionedDirectional(
+                      start: 12,
                       top: 12,
                       child: StatusPill(
-                        label: '${spots.length} detections',
+                        label: '${spots.length} ${s.t('detections')}',
                         color: Ember.amber,
+                      ),
+                    ),
+                    PositionedDirectional(
+                      end: 12,
+                      top: 12,
+                      child: FloatingActionButton.small(
+                        heroTag: 'me',
+                        tooltip: s.t('my_location'),
+                        backgroundColor: Ember.surface,
+                        onPressed: _goToMe,
+                        child: const Icon(Icons.my_location, color: Ember.text),
                       ),
                     ),
                   ],
@@ -121,36 +189,41 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showHotspot(BuildContext context, Hotspot h) {
+    final s = S.of(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Ember.surface,
-      builder: (context) => Padding(
+      builder: (sheet) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hotspot', style: Theme.of(context).textTheme.headlineSmall),
+            Text(s.t('hotspot'), style: Theme.of(sheet).textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text(
-              '${h.position.latitude.toStringAsFixed(4)}, '
-              '${h.position.longitude.toStringAsFixed(4)}\n'
-              '${h.acquiredAt.toUtc().toIso8601String().substring(0, 16)} UTC\n'
-              '${h.sensor} · confidence ${h.confidence} · ${h.frp} MW',
-              style: monoStyle(size: 13, color: Ember.text),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Text(
+                '${h.position.latitude.toStringAsFixed(4)}, '
+                '${h.position.longitude.toStringAsFixed(4)}\n'
+                '${h.acquiredAt.toUtc().toIso8601String().substring(0, 16)} UTC\n'
+                '${h.sensor} · ${s.t('confidence')} ${h.confidence} · ${h.frp} MW',
+                style: monoStyle(size: 13, color: Ember.text),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Field verification is coming next'),
-                  ));
+                  Navigator.pop(sheet);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(builder: (_) => ReportScreen(hotspot: h)),
+                  );
                 },
                 icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Verify in the field'),
+                label: Text(s.t('verify_field')),
               ),
             ),
           ],
@@ -159,6 +232,16 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 }
+
+IconData _labelIcon(ReportLabel l) => switch (l) {
+      ReportLabel.wildfire => Icons.local_fire_department,
+      ReportLabel.agriculturalBurn => Icons.agriculture,
+      ReportLabel.industrial => Icons.factory_outlined,
+      ReportLabel.falseAlarm => Icons.do_not_disturb_on_outlined,
+      ReportLabel.unsure => Icons.help_outline,
+    };
+
+IconData labelIcon(ReportLabel l) => _labelIcon(l);
 
 class _HotspotDot extends StatelessWidget {
   const _HotspotDot(this.h);
