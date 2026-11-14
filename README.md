@@ -1,5 +1,7 @@
 # Ember Almanac — mobile
 
+<img src="assets/brand/logo.png" width="120" alt="Ember Almanac logo">
+
 Team **CedX** · NASA Space Apps Challenge 2026 · *Harmonization of MODIS and VIIRS Hot Spots*
 
 The mobile companion to the Ember Almanac web app. It answers one question
@@ -29,6 +31,19 @@ for the places you care about: **"Is this fire season normal?"**
 - **Offline** — `ApiFireRepository` caches every response on disk and falls back to it when
   there is no signal. Map tiles are cached too.
 - **Emergency** — one tap to call 125, or SMS your location.
+
+## Brand: logo, splash, onboarding
+
+- The logo is drawn in code, in `lib/ui/brand/ember_logo.dart`: Fire Rings (one ring per year,
+  glowing in fire season) around a flame. Every icon is rendered from it:
+  ```
+  flutter test tool/brand/render_brand_test.dart   # writes assets/brand/*.png
+  dart run flutter_launcher_icons                  # app icons
+  dart run flutter_native_splash:create            # native splash
+  ```
+- Launch order: native splash → animated splash (the rings draw in) → 4-page intro on first
+  launch (language and permissions on the last page) → app. Replay the intro with the
+  **?** button on the Today tab.
 
 ## Run
 

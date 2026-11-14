@@ -7,7 +7,7 @@ import 'data/repositories/fire_repository.dart';
 import 'data/repositories/mock_fire_repository.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
-import 'ui/shell.dart';
+import 'ui/screens/splash_screen.dart';
 
 /// Flip to false once the backend serves docs/api_contract.md.
 const useMockData = true;
@@ -24,9 +24,16 @@ Future<void> main() async {
 }
 
 class EmberAlmanacApp extends StatelessWidget {
-  const EmberAlmanacApp({super.key, required this.state});
+  const EmberAlmanacApp({
+    super.key,
+    required this.state,
+    this.minSplash = const Duration(milliseconds: 2200),
+  });
 
   final AppState state;
+
+  /// How long the animated splash stays up at least.
+  final Duration minSplash;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +49,7 @@ class EmberAlmanacApp extends StatelessWidget {
           locale: Locale(state.languageCode),
           supportedLocales: const [Locale('en'), Locale('ar')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          home: const AppShell(),
+          home: AppGate(minSplash: minSplash),
         ),
       ),
     );

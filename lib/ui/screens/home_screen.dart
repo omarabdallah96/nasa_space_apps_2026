@@ -6,12 +6,14 @@ import '../../domain/anomaly.dart';
 import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../brand/ember_logo.dart';
 import '../widgets/common.dart';
 import '../widgets/fire_rings.dart';
 import '../widgets/fire_weather_card.dart';
 import '../widgets/near_me_card.dart';
 import '../widgets/season_chart.dart';
 import '../widgets/share_card.dart';
+import 'onboarding_screen.dart';
 
 /// "Is this fire season normal?" — near me, the one-sentence answer,
 /// Fire Rings, season chart, fire weather and evidence.
@@ -24,8 +26,26 @@ class HomeScreen extends StatelessWidget {
     final state = AppScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(s.t('app_name')),
+        titleSpacing: 16,
+        title: Row(children: [
+          const EmberLogo(size: 30),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(s.t('app_name'), overflow: TextOverflow.ellipsis),
+          ),
+        ]),
         actions: [
+          IconButton(
+            tooltip: s.t('intro'),
+            icon: const Icon(Icons.help_outline, color: Ember.textMuted),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (route) => OnboardingScreen(onDone: () => Navigator.pop(route)),
+              ),
+            ),
+          ),
           TextButton(
             onPressed: () => state.setLanguage(s.ar ? 'en' : 'ar'),
             child: Text(s.t('language'), style: const TextStyle(color: Ember.amber)),

@@ -43,6 +43,9 @@ class AppState extends ChangeNotifier {
   /// 'en' or 'ar'.
   String languageCode = 'en';
 
+  /// False until the user finishes the intro once.
+  bool onboarded = false;
+
   // Near me.
   LatLng? userPosition;
   RegionMatch? userRegion;
@@ -56,11 +59,15 @@ class AppState extends ChangeNotifier {
   // Field reports.
   List<FieldReport> reports = const [];
 
-  static const _kWatch = 'watchlist', _kLang = 'language', _kNotified = 'notified_alerts';
+  static const _kWatch = 'watchlist',
+      _kLang = 'language',
+      _kNotified = 'notified_alerts',
+      _kOnboarded = 'onboarded';
 
   Future<void> init() async {
     watchlist = (_prefs.getStringList(_kWatch) ?? ['lebanon']).toSet();
     languageCode = _prefs.getString(_kLang) ?? 'en';
+    onboarded = _prefs.getBool(_kOnboarded) ?? false;
     reports = reportStore.load();
     try {
       regions = await repository.getRegions();
@@ -92,6 +99,12 @@ class AppState extends ChangeNotifier {
     _prefs.setStringList(_kWatch, watchlist.toList());
     notifyListeners();
     checkAlerts();
+  }
+
+  void completeOnboarding() {
+    onboarded = true;
+    _prefs.setBool(_kOnboarded, true);
+    notifyListeners();
   }
 
   void setLanguage(String code) {

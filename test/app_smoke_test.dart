@@ -38,7 +38,7 @@ class _FakeWeather extends WeatherService {
 }
 
 Future<AppState> _state(String lang) async {
-  SharedPreferences.setMockInitialValues({'language': lang});
+  SharedPreferences.setMockInitialValues({'language': lang, 'onboarded': true});
   final state = AppState(
     MockFireRepository(latency: Duration.zero),
     prefs: await SharedPreferences.getInstance(),
@@ -75,10 +75,11 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(400, 860));
       final state = await _state(lang);
       await tester.runAsync(() async {
-        await tester.pumpWidget(EmberAlmanacApp(state: state));
+        await tester.pumpWidget(EmberAlmanacApp(state: state, minSplash: Duration.zero));
         await state.init();
       });
       await settle(tester);
+      await tester.pump(const Duration(milliseconds: 600)); // splash fade-out
 
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.text(lang == 'ar' ? 'هل موسم الحرائق هذا طبيعي؟' : 'Is this fire season normal?'),
@@ -94,4 +95,52 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('first launch: splash, then onboarding, then the app', (tester) async {
+    final original = FlutterError.onError;
+    FlutterError.onError = (d) {
+      if (d.exception.toString().contains('GoogleFonts')) return;
+      original?.call(d);
+    };
+    addTearDown(() => FlutterError.onError = original);
+
+    await tester.binding.setSurfaceSize(const Size(400, 860));
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final state = AppState(
+      MockFireRepository(latency: Duration.zero),
+      prefs: prefs,
+      notifications: _NoNotifications(),
+      weather: _FakeWeather(),
+    );
+    await tester.runAsync(() async {
+      await tester.pumpWidget(EmberAlmanacApp(
+          state: state, minSplash: const Duration(milliseconds: 300)));
+      await state.init();
+    });
+
+    // Splash first.
+    await tester.pump();
+    expect(find.text('Ember Almanac'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+
+    // Then the intro (the splash timer runs in real time).
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 400)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Next'), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pump(); // starts the page animation
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(find.text('Allow location'), findsOneWidget);
+    await tester.tap(find.text('Get started'));
+    await tester.pump(const Duration(milliseconds: 600));
+    await settle(tester);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(prefs.getBool('onboarded'), isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }
