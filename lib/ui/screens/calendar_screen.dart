@@ -32,39 +32,78 @@ class _CalendarScreenState extends State<CalendarScreen> {
               builder: (context, region, record) => ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
-                  SegmentedButton<bool>(
-                    segments: [
-                      ButtonSegment(value: false, label: Text(s.t('raw_sensors'))),
-                      ButtonSegment(value: true, label: Text(s.t('harmonized'))),
-                    ],
-                    selected: {_harmonized},
-                    onSelectionChanged: (v) => setState(() => _harmonized = v.first),
-                  ),
-                  const SizedBox(height: 16),
-                  SectionCard(
-                    title: s.t('the_seam'),
-                    subtitle: s.t(_harmonized ? 'seam_fixed' : 'seam_raw'),
-                    child: Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: YearlyBars(record: record, harmonized: _harmonized),
+                  // How to read this screen, in one line.
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Ember.amber.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Ember.amber.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.touch_app_outlined, color: Ember.amber, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(s.t('history_intro'),
+                              style: Theme.of(context).textTheme.bodyMedium),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
                   SectionCard(
                     title: '${record.firstYear}–${record.latestYear}',
                     subtitle: s.t('tap_month'),
-                    child: Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: CalendarHeatmap(
-                        record: record,
-                        harmonized: _harmonized,
-                        monthLabels: s.monthLetters,
-                        onCellTap: (c) => _showCell(context, record, c),
-                      ),
+                    child: Column(
+                      children: [
+                        Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: CalendarHeatmap(
+                            record: record,
+                            harmonized: _harmonized,
+                            monthLabels: s.monthLetters,
+                            onCellTap: (c) => _showCell(context, record, c),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _ScaleLegend(s),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _ScaleLegend(s),
+                  const SizedBox(height: 16),
+                  SectionCard(
+                    title: s.t('the_seam'),
+                    subtitle: s.t(_harmonized ? 'seam_fixed' : 'seam_raw'),
+                    info: s.t('info_seam'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SegmentedButton<bool>(
+                          segments: [
+                            ButtonSegment(
+                              value: false,
+                              icon: const Icon(Icons.satellite_alt_outlined, size: 18),
+                              label: Text(s.t('view_raw')),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              icon: const Icon(Icons.verified_outlined, size: 18),
+                              label: Text(s.t('view_fixed')),
+                            ),
+                          ],
+                          selected: {_harmonized},
+                          onSelectionChanged: (v) => setState(() => _harmonized = v.first),
+                        ),
+                        const SizedBox(height: 14),
+                        Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: YearlyBars(record: record, harmonized: _harmonized),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -79,9 +118,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final sum = summarize(record, year: c.year, month: c.month);
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true,
       backgroundColor: Ember.surface,
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,11 +152,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _row(String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(
           children: [
-            Expanded(child: Text(k, style: monoStyle(size: 13))),
-            Text(v, style: monoStyle(size: 13, color: Ember.text)),
+            Expanded(child: Text(k, style: monoStyle(size: 14))),
+            Text(v, style: monoStyle(size: 15, color: Ember.text)),
           ],
         ),
       );

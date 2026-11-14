@@ -40,7 +40,7 @@ class _AppShellState extends State<AppShell> {
       body: IndexedStack(
         index: _tab,
         children: [
-          const HomeScreen(),
+          HomeScreen(onOpenMap: () => setState(() => _tab = 2)),
           const CalendarScreen(),
           const MapScreen(),
           AlertsScreen(onOpen: () => setState(() => _tab = 0)),
@@ -58,7 +58,7 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
               icon: const Icon(Icons.calendar_month_outlined),
               selectedIcon: const Icon(Icons.calendar_month),
-              label: s.t('tab_calendar')),
+              label: s.t('tab_history')),
           NavigationDestination(
               icon: const Icon(Icons.map_outlined),
               selectedIcon: const Icon(Icons.map),

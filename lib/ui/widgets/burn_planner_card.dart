@@ -44,6 +44,7 @@ class _BurnPlannerCardState extends State<BurnPlannerCard> {
     return SectionCard(
       title: s.t('burn_planner'),
       subtitle: s.t('burn_planner_sub'),
+      info: s.t('info_planner'),
       child: FutureBuilder<List<DayForecast>>(
         future: _future,
         builder: (context, snap) {
@@ -141,13 +142,13 @@ class _DayTile extends StatelessWidget {
           children: [
             FittedBox(
               child: Text(label,
-                  style: monoStyle(size: 10, color: Ember.text)),
+                  style: monoStyle(size: 11, color: Ember.text)),
             ),
             const SizedBox(height: 6),
             Icon(best ? Icons.star : Icons.circle, size: best ? 16 : 10, color: color),
             const SizedBox(height: 6),
-            FittedBox(child: Text('$wind', style: monoStyle(size: 10))),
-            Text('km/h', style: monoStyle(size: 7)),
+            FittedBox(child: Text('$wind', style: monoStyle(size: 12, color: Ember.text))),
+            FittedBox(child: Text('km/h', style: monoStyle(size: 9))),
           ],
         ),
       );

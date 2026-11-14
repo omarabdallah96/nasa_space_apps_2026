@@ -38,6 +38,7 @@ class _FireWeatherCardState extends State<FireWeatherCard> {
     return SectionCard(
       title: s.t('fire_weather'),
       subtitle: s.t('fire_weather_sub'),
+      info: s.t('info_weather'),
       child: FutureBuilder<FireWeather>(
         future: _future,
         builder: (context, snap) {
@@ -130,8 +131,8 @@ class _W extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: Ember.textMuted),
             const SizedBox(height: 4),
-            Text(value, style: monoStyle(size: 13, color: Ember.text)),
-            Text(label, style: monoStyle(size: 10)),
+            Text(value, style: monoStyle(size: 14, color: Ember.text)),
+            Text(label, style: monoStyle(size: 11)),
           ],
         ),
       );

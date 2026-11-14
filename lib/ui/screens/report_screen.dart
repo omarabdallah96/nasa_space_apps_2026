@@ -11,6 +11,7 @@ import '../../services/report_store.dart';
 import '../../state/app_state.dart';
 import '../../services/triangulation.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/common.dart';
 import '../widgets/compass_aim.dart';
 import 'map_screen.dart' show labelIcon;
 
@@ -103,48 +104,52 @@ class _ReportScreenState extends State<ReportScreen> {
         !_saving &&
         (_position != null || h != null);
 
+    final needsDirection =
+        _label == ReportLabel.smoke || _label == ReportLabel.wildfire;
+
     return Scaffold(
       appBar: AppBar(title: Text(s.t('field_report'))),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Photo.
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Ember.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Ember.outline),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _photoPath == null
-                  ? Icon(Icons.photo_camera_outlined,
-                      size: 48, color: Ember.textMuted)
-                  : kIsWeb
-                      ? Image.network(_photoPath!, fit: BoxFit.cover)
-                      : Image.file(File(_photoPath!), fit: BoxFit.cover),
-            ),
+      // Always-visible send button that says why it is disabled.
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: BoxDecoration(
+            color: Ember.surface,
+            border: Border(top: BorderSide(color: Ember.outline)),
           ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: () => _pick(ImageSource.camera),
-                icon: const Icon(Icons.photo_camera),
-                label: Text(s.t('take_photo')),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_label == null) ...[
+                Row(children: [
+                  Icon(Icons.info_outline, size: 16, color: Ember.textMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(s.t('save_hint'),
+                        style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ],
+              FilledButton.icon(
+                onPressed: canSave ? _save : null,
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                icon: _saving
+                    ? const SizedBox.square(
+                        dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.send),
+                label: Text(s.t('save_report')),
               ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: () => _pick(ImageSource.gallery),
-              icon: const Icon(Icons.photo_library_outlined),
-              label: Text(s.t('from_gallery')),
-            ),
-          ]),
-          const SizedBox(height: 20),
-          Text(s.t('what_see'), style: text.titleLarge?.copyWith(fontSize: 18)),
-          const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          // Step 1: what (required).
+          StepHeader(number: 1, title: s.t('what_see'), done: _label != null),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -159,43 +164,106 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Ember.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _label == ReportLabel.smoke ? Ember.amber : Ember.outline,
-                width: _label == ReportLabel.smoke ? 2 : 1,
+          const SizedBox(height: 24),
+          // Step 2: photo (optional).
+          StepHeader(
+              number: 2, title: s.t('step_photo'), optional: true, done: _photoPath != null),
+          const SizedBox(height: 12),
+          if (_photoPath != null) ...[
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: kIsWeb
+                    ? Image.network(_photoPath!, fit: BoxFit.cover)
+                    : Image.file(File(_photoPath!), fit: BoxFit.cover),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  const Icon(Icons.explore_outlined, color: Ember.amber, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(s.t('compass_title'),
-                        style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  ),
-                ]),
-                const SizedBox(height: 8),
-                CompassAim(
-                  locked: _bearing,
-                  onChanged: (b) => setState(() => _bearing = b),
-                ),
-              ],
+            const SizedBox(height: 8),
+          ],
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () => _pick(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: Text(s.t('take_photo')),
+              ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () => _pick(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(s.t('from_gallery')),
+              ),
+            ),
+          ]),
+          // Step 3: direction, only when it helps (smoke / wildfire).
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            alignment: Alignment.topCenter,
+            child: !needsDirection
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        StepHeader(
+                          number: 3,
+                          title: s.t('step_direction'),
+                          subtitle: s.t('step_direction_sub'),
+                          optional: true,
+                          done: _bearing != null,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Ember.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Ember.amber, width: 1.5),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Icon(Icons.explore_outlined,
+                                    color: Ember.amber, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(s.t('compass_title'),
+                                      style: text.titleSmall
+                                          ?.copyWith(fontWeight: FontWeight.w600)),
+                                ),
+                              ]),
+                              const SizedBox(height: 8),
+                              CompassAim(
+                                locked: _bearing,
+                                onChanged: (b) => setState(() => _bearing = b),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+          // Last step: note (optional).
+          StepHeader(
+            number: needsDirection ? 4 : 3,
+            title: s.t('step_note'),
+            optional: true,
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _note,
             maxLines: 3,
             decoration: InputDecoration(
-              labelText: s.t('note'),
+              hintText: s.t('note'),
               border: const OutlineInputBorder(),
             ),
           ),
@@ -216,15 +284,6 @@ class _ReportScreenState extends State<ReportScreen> {
               label: s.t('linked_hotspot'),
               value: '${h.sensor} · ${h.acquiredAt.toUtc().toIso8601String().substring(0, 16)}',
             ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: canSave ? _save : null,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            child: _saving
-                ? const SizedBox.square(
-                    dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(s.t('save_report')),
-          ),
         ],
       ),
     );
@@ -290,7 +349,23 @@ class ReportsListScreen extends StatelessWidget {
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
-                child: Text(s.t('no_reports'), textAlign: TextAlign.center),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.fact_check_outlined, size: 56, color: Ember.textMuted),
+                    const SizedBox(height: 16),
+                    Text(s.t('no_reports'),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyLarge),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.pushReplacement(context,
+                          MaterialPageRoute<void>(builder: (_) => const ReportScreen())),
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: Text(s.t('report_fire')),
+                    ),
+                  ],
+                ),
               ),
             )
           : ListView(
@@ -323,7 +398,27 @@ class ReportsListScreen extends StatelessWidget {
                       trailing: IconButton(
                         tooltip: s.t('delete'),
                         icon: const Icon(Icons.delete_outline),
-                        onPressed: () => state.deleteReport(r.id),
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              title: Text(s.t('delete_confirm')),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(d, false),
+                                  child: Text(s.t('cancel')),
+                                ),
+                                FilledButton(
+                                  style: FilledButton.styleFrom(
+                                      backgroundColor: Ember.extreme),
+                                  onPressed: () => Navigator.pop(d, true),
+                                  child: Text(s.t('delete')),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) await state.deleteReport(r.id);
+                        },
                       ),
                     ),
                   ),

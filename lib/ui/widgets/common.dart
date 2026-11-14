@@ -15,7 +15,7 @@ class RegionChips extends StatelessWidget {
     final state = AppScope.of(context);
     final s = S.of(context);
     return SizedBox(
-      height: 44,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -23,9 +23,18 @@ class RegionChips extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final r = state.regions[i];
+          final selected = r.id == state.selected?.id;
           return ChoiceChip(
+            avatar: Icon(
+              selected ? Icons.place : Icons.place_outlined,
+              size: 18,
+              color: selected ? Ember.ember : Ember.textMuted,
+            ),
             label: Text(s.region(r)),
-            selected: r.id == state.selected?.id,
+            labelStyle: TextStyle(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+            selected: selected,
             showCheckmark: false,
             onSelected: (_) => state.select(r),
           );
@@ -110,12 +119,16 @@ class SectionCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.info,
     required this.child,
   });
 
   final String title;
   final String? subtitle;
   final Widget? trailing;
+
+  /// Plain-language help shown from a "?" button next to the title.
+  final String? info;
   final Widget child;
 
   @override
@@ -130,6 +143,7 @@ class SectionCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: Text(title, style: text.titleLarge?.copyWith(fontSize: 18))),
+                if (info != null) InfoButton(title: title, body: info!),
                 ?trailing,
               ],
             ),
@@ -164,4 +178,135 @@ class StatusPill extends StatelessWidget {
           style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
         ),
       );
+}
+
+
+/// Opens a bottom sheet that explains something in plain words.
+Future<void> showHelp(BuildContext context, {required String title, required String body}) {
+  final s = S.of(context);
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: Ember.surface,
+    builder: (sheet) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(sheet).height * 0.8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Long text scrolls; the button below always stays visible.
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.lightbulb_outline, color: Ember.amber),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(title, style: Theme.of(sheet).textTheme.titleLarge),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(s.t('how_to_read'),
+                        style: Theme.of(sheet)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: Ember.textMuted)),
+                    const SizedBox(height: 16),
+                    Text(body,
+                        style: Theme.of(sheet).textTheme.bodyLarge?.copyWith(height: 1.5)),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(sheet),
+                child: Text(s.t('got_it')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// A small "?" that explains the thing next to it.
+class InfoButton extends StatelessWidget {
+  const InfoButton({super.key, required this.title, required this.body});
+  final String title, body;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: S.of(context).t('how_to_read'),
+        visualDensity: VisualDensity.compact,
+        icon: Icon(Icons.help_outline, size: 20, color: Ember.textMuted),
+        onPressed: () => showHelp(context, title: title, body: body),
+      );
+}
+
+/// A circled number + title, for step-by-step forms.
+class StepHeader extends StatelessWidget {
+  const StepHeader({
+    super.key,
+    required this.number,
+    required this.title,
+    this.subtitle,
+    this.optional = false,
+    this.done = false,
+  });
+
+  final int number;
+  final String title;
+  final String? subtitle;
+  final bool optional, done;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final s = S.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: done ? Ember.calm : Ember.ember.withValues(alpha: 0.16),
+          ),
+          child: done
+              ? const Icon(Icons.check, size: 18, color: Colors.white)
+              : Text('$number',
+                  style: const TextStyle(color: Ember.ember, fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(TextSpan(children: [
+                TextSpan(text: title),
+                if (optional)
+                  TextSpan(
+                    text: '  (${s.t('optional')})',
+                    style: text.bodySmall?.copyWith(color: Ember.textMuted),
+                  ),
+              ]), style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              if (subtitle != null)
+                Text(subtitle!, style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

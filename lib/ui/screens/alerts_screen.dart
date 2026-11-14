@@ -44,31 +44,21 @@ class AlertsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(s.t('alerts_intro'),
-                style: text.bodyMedium?.copyWith(color: Ember.textMuted)),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: state.checkingAlerts ? null : () => _checkAndNotify(context),
-              icon: const Icon(Icons.notifications_active_outlined),
-              label: Text(s.t('check_notify')),
-            ),
+            // Safety first: always one tap away.
+            const _EmergencyCard(),
             const SizedBox(height: 20),
             Text(s.t('active_alerts'), style: text.titleLarge?.copyWith(fontSize: 18)),
-            const SizedBox(height: 8),
-            if (state.checkingAlerts && state.alerts.isEmpty)
-              const LinearProgressIndicator(color: Ember.ember)
-            else if (state.alerts.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    const Icon(Icons.check_circle_outline, color: Ember.calm),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(s.t('no_alerts'))),
-                  ]),
-                ),
-              )
-            else
+            const SizedBox(height: 4),
+            Text(s.t('alerts_intro'),
+                style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+            const SizedBox(height: 10),
+            _StatusBanner(
+              checking: state.checkingAlerts,
+              count: state.alerts.length,
+              onCheck: state.checkingAlerts ? null : () => _checkAndNotify(context),
+            ),
+            const SizedBox(height: 10),
+            if (state.alerts.isNotEmpty)
               for (final a in state.alerts) ...[
                 _AlertTile(a, onTap: () {
                   state.select(a.region);
@@ -78,7 +68,9 @@ class AlertsScreen extends StatelessWidget {
               ],
             const SizedBox(height: 20),
             Text(s.t('watched_places'), style: text.titleLarge?.copyWith(fontSize: 18)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            Text(s.t('watch_hint'), style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+            const SizedBox(height: 10),
             for (final r in state.regions) ...[
               _WatchTile(
                 region: r,
@@ -92,15 +84,74 @@ class AlertsScreen extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             const SizedBox(height: 12),
-            Row(children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Icon(Icons.explore_outlined, size: 18, color: Ember.amber),
               const SizedBox(width: 8),
-              Expanded(child: Text(s.t('smoke_tip'), style: monoStyle(size: 11))),
+              Expanded(
+                child: Text(s.t('smoke_tip'),
+                    style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+              ),
             ]),
-            const SizedBox(height: 20),
-            const _EmergencyCard(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "All quiet" or "N alerts need your attention", with a check button.
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.checking, required this.count, this.onCheck});
+  final bool checking;
+  final int count;
+  final VoidCallback? onCheck;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final quiet = count == 0;
+    final color = quiet ? Ember.calm : Ember.ember;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            if (checking)
+              const SizedBox.square(
+                dimension: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: Ember.ember),
+              )
+            else
+              Icon(quiet ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                  color: color, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                checking && quiet
+                    ? s.t('loading')
+                    : quiet
+                        ? s.t('no_alerts')
+                        : '$count ${s.t('alerts_found')}',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onCheck,
+            icon: const Icon(Icons.refresh),
+            label: Text(s.t('check_notify')),
+          ),
+        ],
       ),
     );
   }
@@ -153,6 +204,7 @@ class _AlertTile extends StatelessWidget {
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: Ember.textMuted),
             ],
           ),
         ),
@@ -206,15 +258,31 @@ class _WatchTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (sum != null)
-                    StatusPill(label: s.status(sum.status), color: Ember.forStatus(sum.status)),
-                  IconButton(
-                    tooltip: s.t(watched ? 'stop_watching' : 'watch'),
-                    onPressed: onToggle,
-                    icon: Icon(
-                      watched ? Icons.notifications_active : Icons.notifications_none,
-                      color: watched ? Ember.ember : Ember.textMuted,
-                    ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (sum != null) ...[
+                        StatusPill(
+                            label: s.status(sum.status), color: Ember.forStatus(sum.status)),
+                        const SizedBox(height: 6),
+                      ],
+                      Tooltip(
+                        message: s.t(watched ? 'stop_watching' : 'watch'),
+                        child: FilterChip(
+                          avatar: Icon(
+                            watched ? Icons.notifications_active : Icons.add_alert_outlined,
+                            size: 18,
+                            color: watched ? Ember.ember : Ember.textMuted,
+                          ),
+                          label: Text(s.t(watched ? 'watching' : 'watch')),
+                          selected: watched,
+                          showCheckmark: false,
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) => onToggle(),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               );

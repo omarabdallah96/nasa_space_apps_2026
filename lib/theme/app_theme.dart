@@ -143,6 +143,36 @@ ThemeData buildEmberTheme({bool arabic = false}) {
         sans(fontSize: 12, color: Ember.text),
       ),
     ),
+    // Comfortable touch targets and one consistent button shape.
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(64, 46),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: sans(fontSize: 15).copyWith(fontWeight: FontWeight.w600),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(64, 44),
+        foregroundColor: Ember.text,
+        side: BorderSide(color: Ember.outline),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: sans(fontSize: 14).copyWith(fontWeight: FontWeight.w600),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Ember.surfaceHigh,
+      contentTextStyle: sans(fontSize: 14, color: Ember.text),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: Ember.surface,
+      dragHandleColor: Ember.outline,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+    ),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: Ember.surface,
       selectedColor: Ember.ember.withValues(alpha: 0.25),
