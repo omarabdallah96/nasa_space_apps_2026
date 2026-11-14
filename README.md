@@ -1,10 +1,10 @@
-# Fire Site — mobile
+# Firesight — mobile
 
-<img src="assets/brand/logo.png" width="120" alt="Fire Site logo">
+<img src="assets/brand/logo.png" width="120" alt="Firesight logo">
 
 Team **CedX** · NASA Space Apps Challenge 2026 · *Harmonization of MODIS and VIIRS Hot Spots*
 
-The mobile companion to the Fire Site web app. It answers one question
+The mobile companion to the Firesight web app. It answers one question
 for the places you care about: **"Is this fire season normal?"**
 
 ## Screens

@@ -1,4 +1,4 @@
-# Fire Site — mobile data contract
+# Firesight — mobile data contract
 
 The mobile app reads three JSON documents. The mock files in `assets/mock/`
 follow this contract exactly. When the backend (or the web app's Node

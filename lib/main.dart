@@ -20,11 +20,11 @@ Future<void> main() async {
   } catch (_) {
     // Never block app start on background scheduling.
   }
-  runApp(FireSiteApp(state: state..init()));
+  runApp(FiresightApp(state: state..init()));
 }
 
-class FireSiteApp extends StatelessWidget {
-  const FireSiteApp({
+class FiresightApp extends StatelessWidget {
+  const FiresightApp({
     super.key,
     required this.state,
     this.minSplash = const Duration(milliseconds: 2200),
@@ -53,7 +53,7 @@ class FireSiteApp extends StatelessWidget {
             (context as Element).visitChildren(markDirty);
           }
           return MaterialApp(
-          title: 'Fire Site',
+          title: 'Firesight',
           debugShowCheckedModeBanner: false,
           theme: buildEmberTheme(arabic: state.languageCode == 'ar'),
           // Arabic switches the whole layout to right-to-left.

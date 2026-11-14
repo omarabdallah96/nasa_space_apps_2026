@@ -87,7 +87,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(400, 860));
       final state = await _state(lang);
       await tester.runAsync(() async {
-        await tester.pumpWidget(FireSiteApp(state: state, minSplash: Duration.zero));
+        await tester.pumpWidget(FiresightApp(state: state, minSplash: Duration.zero));
         await state.init();
       });
       await settle(tester);
@@ -127,7 +127,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(400, 860));
     final state = await _state('en');
     await tester.runAsync(() async {
-      await tester.pumpWidget(FireSiteApp(state: state, minSplash: Duration.zero));
+      await tester.pumpWidget(FiresightApp(state: state, minSplash: Duration.zero));
       await state.init();
     });
     await settle(tester);
@@ -177,14 +177,14 @@ void main() {
       weather: _FakeWeather(),
     );
     await tester.runAsync(() async {
-      await tester.pumpWidget(FireSiteApp(
+      await tester.pumpWidget(FiresightApp(
           state: state, minSplash: const Duration(milliseconds: 300)));
       await state.init();
     });
 
     // Splash first.
     await tester.pump();
-    expect(find.text('Fire Site'), findsOneWidget);
+    expect(find.text('Firesight'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
 
     // Then the intro (the splash timer runs in real time).

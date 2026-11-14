@@ -1,5 +1,5 @@
 name: nasa_space_apps_2026
-description: "Fire Site mobile: is this fire season normal? (NASA Space Apps 2026, team CedX)"
+description: "Firesight mobile: is this fire season normal? (NASA Space Apps 2026, team CedX)"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

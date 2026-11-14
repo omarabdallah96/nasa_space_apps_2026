@@ -1,4 +1,4 @@
-"""Generate mock data for the Fire Site mobile app.
+"""Generate mock data for the Firesight mobile app.
 
 Output files follow docs/api_contract.md exactly, so the real backend can
 replace them without app changes. The numbers are synthetic but shaped like

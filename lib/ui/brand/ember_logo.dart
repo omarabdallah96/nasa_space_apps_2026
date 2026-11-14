@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 
-/// The Fire Site mark: Fire Rings (one ring per year, 12 month segments,
+/// The Firesight mark: Fire Rings (one ring per year, 12 month segments,
 /// glowing in fire season) around a flame.
 ///
 /// [progress] animates the mark in: rings draw segment by segment from the

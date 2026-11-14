@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/anomaly.dart';
 
-/// Fire Site palette: charcoal (dark) or warm paper (light) neutrals,
+/// Firesight palette: charcoal (dark) or warm paper (light) neutrals,
 /// ember accents in both.
 abstract final class Ember {
   /// Which neutrals are active. Set from [AppState.darkMode] by the app root.

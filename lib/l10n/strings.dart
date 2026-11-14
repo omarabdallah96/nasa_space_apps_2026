@@ -118,7 +118,7 @@ class S {
   static const _compassAr = ['الشمال', 'الشمال الشرقي', 'الشرق', 'الجنوب الشرقي', 'الجنوب', 'الجنوب الغربي', 'الغرب', 'الشمال الغربي'];
 
   static const _en = <String, String>{
-    'app_name': 'Fire Site',
+    'app_name': 'Firesight',
     'tab_today': 'Today',
     'tab_calendar': 'Calendar',
     'tab_map': 'Map',
@@ -257,7 +257,7 @@ class S {
     'get_started': 'Get started',
     'intro': 'Intro',
     'ob1_title': 'Is this fire season normal?',
-    'ob1_body': 'Fire Site answers that in one sentence for the places you care about, using 25 years of NASA satellite fire detections.',
+    'ob1_body': 'Firesight answers that in one sentence for the places you care about, using 25 years of NASA satellite fire detections.',
     'ob2_title': 'Two satellites, one fair record',
     'ob2_body': 'MODIS has watched fires since 2000. VIIRS, since 2012, has sharper eyes and sees more. We stitch them together so 2005 and 2025 can be compared fairly.',
     'ob2_raw': 'Raw: fake jump in 2012',
@@ -323,7 +323,7 @@ class S {
   };
 
   static const _ar = <String, String>{
-    'app_name': 'فاير سايت',
+    'app_name': 'فايرسايت',
     'tab_today': 'اليوم',
     'tab_calendar': 'التقويم',
     'tab_map': 'الخريطة',
@@ -455,7 +455,7 @@ class S {
     'get_started': 'ابدأ',
     'intro': 'المقدمة',
     'ob1_title': 'هل موسم الحرائق هذا طبيعي؟',
-    'ob1_body': 'يجيبك فاير سايت بجملة واحدة عن الأماكن التي تهمّك، اعتماداً على 25 عاماً من رصد الحرائق بأقمار ناسا الصناعية.',
+    'ob1_body': 'يجيبك فايرسايت بجملة واحدة عن الأماكن التي تهمّك، اعتماداً على 25 عاماً من رصد الحرائق بأقمار ناسا الصناعية.',
     'ob2_title': 'قمران صناعيان، سجل واحد عادل',
     'ob2_body': 'يرصد MODIS الحرائق منذ 2000. أمّا VIIRS فمنذ 2012، وهو أدقّ رؤية ويرى أكثر. نحن ندمجهما لتصبح المقارنة بين 2005 و2025 عادلة.',
     'ob2_raw': 'الخام: قفزة وهمية في 2012',
