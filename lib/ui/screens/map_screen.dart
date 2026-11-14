@@ -223,7 +223,7 @@ class _MapScreenState extends State<MapScreen> {
                         tooltip: s.t('my_location'),
                         backgroundColor: Ember.surface,
                         onPressed: _goToMe,
-                        child: const Icon(Icons.my_location, color: Ember.text),
+                        child: Icon(Icons.my_location, color: Ember.text),
                       ),
                     ),
                   ],

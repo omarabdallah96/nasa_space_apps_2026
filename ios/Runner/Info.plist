@@ -3,7 +3,7 @@
 <plist version="1.0">
 	<dict>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>Ember Almanac uses your location to show fire activity near you and to tag field reports.</string>
+		<string>Fire Site uses your location to show fire activity near you and to tag field reports.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>Take a photo to verify a fire hotspot in the field.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
@@ -16,7 +16,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Nasa Space Apps 2026</string>
+		<string>Fire Site</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>

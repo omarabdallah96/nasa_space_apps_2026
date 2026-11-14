@@ -1,10 +1,10 @@
-# Ember Almanac — mobile
+# Fire Site — mobile
 
-<img src="assets/brand/logo.png" width="120" alt="Ember Almanac logo">
+<img src="assets/brand/logo.png" width="120" alt="Fire Site logo">
 
 Team **CedX** · NASA Space Apps Challenge 2026 · *Harmonization of MODIS and VIIRS Hot Spots*
 
-The mobile companion to the Ember Almanac web app. It answers one question
+The mobile companion to the Fire Site web app. It answers one question
 for the places you care about: **"Is this fire season normal?"**
 
 ## Screens
@@ -31,6 +31,14 @@ for the places you care about: **"Is this fire season normal?"**
 - **Offline** — `ApiFireRepository` caches every response on disk and falls back to it when
   there is no signal. Map tiles are cached too.
 - **Emergency** — one tap to call 125, or SMS your location.
+- **Background alerts** — Android checks watched places every 3 hours (WorkManager), even when
+  the app is closed. It uses your last known position. Can be turned off in the Alerts tab.
+- **Smoke triangulation** — when you report smoke, the compass records where the phone points.
+  Two or more reports from different places are crossed on the map to estimate where the fire
+  is, with an uncertainty circle, and the app says whether a satellite has seen it yet. Demo
+  without going outside: *Map → My reports → ⋮ → Simulate smoke reports*.
+- **7-day burn planner** — the Open-Meteo forecast is ranked for agricultural burning: the best
+  day this week, with unsafe days (wind, dry air, critical period) excluded.
 
 ## Brand: logo, splash, onboarding
 

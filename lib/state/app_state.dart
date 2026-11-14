@@ -45,6 +45,9 @@ class AppState extends ChangeNotifier {
   /// 'en' or 'ar'.
   String languageCode = 'en';
 
+  /// Dark (default) or light colors.
+  bool darkMode = true;
+
   /// False until the user finishes the intro once.
   bool onboarded = false;
 
@@ -72,6 +75,7 @@ class AppState extends ChangeNotifier {
 
   static const _kWatch = 'watchlist',
       _kLang = 'language',
+      _kDark = 'dark_mode',
       _kNotified = 'notified_alerts',
       _kOnboarded = 'onboarded',
       _kBackground = 'background_checks',
@@ -81,6 +85,7 @@ class AppState extends ChangeNotifier {
   Future<void> init({bool checkOnStart = true}) async {
     watchlist = (_prefs.getStringList(_kWatch) ?? ['lebanon']).toSet();
     languageCode = _prefs.getString(_kLang) ?? 'en';
+    darkMode = _prefs.getBool(_kDark) ?? true;
     onboarded = _prefs.getBool(_kOnboarded) ?? false;
     reports = reportStore.load();
     smokeEstimates = triangulate(reports);
@@ -128,6 +133,13 @@ class AppState extends ChangeNotifier {
   void setLanguage(String code) {
     languageCode = code;
     _prefs.setString(_kLang, code);
+    notifyListeners();
+  }
+
+  void setDarkMode(bool dark) {
+    if (darkMode == dark) return;
+    darkMode = dark;
+    _prefs.setBool(_kDark, dark);
     notifyListeners();
   }
 

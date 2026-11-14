@@ -119,7 +119,7 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
               clipBehavior: Clip.antiAlias,
               child: _photoPath == null
-                  ? const Icon(Icons.photo_camera_outlined,
+                  ? Icon(Icons.photo_camera_outlined,
                       size: 48, color: Ember.textMuted)
                   : kIsWeb
                       ? Image.network(_photoPath!, fit: BoxFit.cover)

@@ -9,6 +9,7 @@ import 'package:nasa_space_apps_2026/main.dart';
 import 'package:nasa_space_apps_2026/services/notification_service.dart';
 import 'package:nasa_space_apps_2026/services/weather_service.dart';
 import 'package:nasa_space_apps_2026/state/app_state.dart';
+import 'package:nasa_space_apps_2026/theme/app_theme.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +36,17 @@ class _FakeWeather extends WeatherService {
   @override
   Future<FireWeather> current(LatLng p) async => const FireWeather(
       temperatureC: 24, humidity: 30, windKmh: 18, gustKmh: 30, precipitationMm: 0);
+
+  @override
+  Future<List<DayForecast>> forecast(LatLng p, {int days = 7}) async => [
+        for (var i = 0; i < days; i++)
+          DayForecast(
+            DateUtils.dateOnly(DateTime.now()).add(Duration(days: i)),
+            FireWeather(
+                temperatureC: 18, humidity: 40.0 + i * 5, windKmh: 20.0 - i * 2,
+                gustKmh: 30, precipitationMm: 0),
+          ),
+      ];
 }
 
 Future<AppState> _state(String lang) async {
@@ -75,7 +87,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(400, 860));
       final state = await _state(lang);
       await tester.runAsync(() async {
-        await tester.pumpWidget(EmberAlmanacApp(state: state, minSplash: Duration.zero));
+        await tester.pumpWidget(FireSiteApp(state: state, minSplash: Duration.zero));
         await state.init();
       });
       await settle(tester);
@@ -96,6 +108,44 @@ void main() {
     });
   }
 
+  testWidgets('light/dark toggle switches colors and is remembered', (tester) async {
+    final original = FlutterError.onError;
+    FlutterError.onError = (d) {
+      if (d.exception.toString().contains('GoogleFonts')) return;
+      original?.call(d);
+    };
+    addTearDown(() => FlutterError.onError = original);
+    addTearDown(() => Ember.isDark = true);
+
+    await tester.binding.setSurfaceSize(const Size(400, 860));
+    final state = await _state('en');
+    await tester.runAsync(() async {
+      await tester.pumpWidget(FireSiteApp(state: state, minSplash: Duration.zero));
+      await state.init();
+    });
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    Color bg() => tester.widget<Scaffold>(find.byType(Scaffold).last).backgroundColor ??
+        Theme.of(tester.element(find.byType(Scaffold).last)).scaffoldBackgroundColor;
+    final darkBg = bg();
+
+    await tester.tap(find.byIcon(Icons.light_mode_outlined));
+    await settle(tester);
+    expect(state.darkMode, isFalse);
+    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
+    expect(bg(), isNot(darkBg));
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('dark_mode'), isFalse);
+
+    await tester.tap(find.byIcon(Icons.dark_mode_outlined));
+    await settle(tester);
+    expect(bg(), darkBg);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5)); // drain pending timers
+  });
+
   testWidgets('first launch: splash, then onboarding, then the app', (tester) async {
     final original = FlutterError.onError;
     FlutterError.onError = (d) {
@@ -114,14 +164,14 @@ void main() {
       weather: _FakeWeather(),
     );
     await tester.runAsync(() async {
-      await tester.pumpWidget(EmberAlmanacApp(
+      await tester.pumpWidget(FireSiteApp(
           state: state, minSplash: const Duration(milliseconds: 300)));
       await state.init();
     });
 
     // Splash first.
     await tester.pump();
-    expect(find.text('Ember Almanac'), findsOneWidget);
+    expect(find.text('Fire Site'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
 
     // Then the intro (the splash timer runs in real time).

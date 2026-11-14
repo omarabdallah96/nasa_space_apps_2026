@@ -1,4 +1,4 @@
-// Renders the Ember Almanac logo (lib/ui/brand/ember_logo.dart) to the PNGs
+// Renders the Fire Site logo (lib/ui/brand/ember_logo.dart) to the PNGs
 // used for the launcher icon and the native splash screen.
 //
 // Run:   flutter test tool/brand/render_brand_test.dart

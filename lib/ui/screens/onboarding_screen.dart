@@ -55,7 +55,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: TextButton(
                   onPressed: last ? null : widget.onDone,
                   child: Text(s.t('skip'),
-                      style: const TextStyle(color: Ember.textMuted)),
+                      style: TextStyle(color: Ember.textMuted)),
                 ),
               ),
             ),

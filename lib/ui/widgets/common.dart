@@ -88,7 +88,7 @@ class ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off, color: Ember.textMuted, size: 40),
+              Icon(Icons.cloud_off, color: Ember.textMuted, size: 40),
               const SizedBox(height: 12),
               Text(S.of(context).t('could_not_load'), style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),

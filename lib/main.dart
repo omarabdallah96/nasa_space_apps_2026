@@ -20,11 +20,11 @@ Future<void> main() async {
   } catch (_) {
     // Never block app start on background scheduling.
   }
-  runApp(EmberAlmanacApp(state: state..init()));
+  runApp(FireSiteApp(state: state..init()));
 }
 
-class EmberAlmanacApp extends StatelessWidget {
-  const EmberAlmanacApp({
+class FireSiteApp extends StatelessWidget {
+  const FireSiteApp({
     super.key,
     required this.state,
     this.minSplash = const Duration(milliseconds: 2200),
@@ -41,16 +41,28 @@ class EmberAlmanacApp extends StatelessWidget {
       state: state,
       child: ListenableBuilder(
         listenable: state,
-        builder: (context, _) => MaterialApp(
-          title: 'Ember Almanac',
+        builder: (context, _) {
+          if (Ember.isDark != state.darkMode) {
+            Ember.isDark = state.darkMode;
+            // Many widgets read Ember colors directly (not via Theme), so
+            // rebuild the whole tree when the mode flips.
+            void markDirty(Element e) {
+              e.markNeedsBuild();
+              e.visitChildren(markDirty);
+            }
+            (context as Element).visitChildren(markDirty);
+          }
+          return MaterialApp(
+          title: 'Fire Site',
           debugShowCheckedModeBanner: false,
-          theme: buildEmberTheme(),
+          theme: buildEmberTheme(arabic: state.languageCode == 'ar'),
           // Arabic switches the whole layout to right-to-left.
           locale: Locale(state.languageCode),
           supportedLocales: const [Locale('en'), Locale('ar')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           home: AppGate(minSplash: minSplash),
-        ),
+        );
+        },
       ),
     );
   }

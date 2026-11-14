@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 
-/// The Ember Almanac mark: Fire Rings (one ring per year, 12 month segments,
+/// The Fire Site mark: Fire Rings (one ring per year, 12 month segments,
 /// glowing in fire season) around a flame.
 ///
 /// [progress] animates the mark in: rings draw segment by segment from the
@@ -56,7 +56,7 @@ class EmberLogoPainter extends CustomPainter {
         bg,
         Paint()
           ..shader = const RadialGradient(
-            colors: [Color(0xFF2A1A12), Ember.background],
+            colors: [Color(0xFF2A1A12), Ember.night],
             radius: 0.75,
           ).createShader(Offset.zero & size),
       );

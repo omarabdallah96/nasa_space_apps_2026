@@ -38,7 +38,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: s.t('intro'),
-            icon: const Icon(Icons.help_outline, color: Ember.textMuted),
+            icon: Icon(Icons.help_outline, color: Ember.textMuted),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute<void>(
@@ -46,6 +46,14 @@ class HomeScreen extends StatelessWidget {
                 builder: (route) => OnboardingScreen(onDone: () => Navigator.pop(route)),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: s.t(state.darkMode ? 'light_mode' : 'dark_mode'),
+            icon: Icon(
+              state.darkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: Ember.textMuted,
+            ),
+            onPressed: () => state.setDarkMode(!state.darkMode),
           ),
           TextButton(
             onPressed: () => state.setLanguage(s.ar ? 'en' : 'ar'),

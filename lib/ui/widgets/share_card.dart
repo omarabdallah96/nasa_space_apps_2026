@@ -68,7 +68,7 @@ Future<void> _shareBoundary(GlobalKey key, Region region, String text) async {
   final bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!
       .buffer
       .asUint8List();
-  final name = 'ember_almanac_${region.id}.png';
+  final name = 'fire_site_${region.id}.png';
 
   final XFile file;
   if (kIsWeb) {

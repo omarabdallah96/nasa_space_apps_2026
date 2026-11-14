@@ -68,7 +68,7 @@ class NearMeCard extends StatelessWidget {
               IconButton(
                 tooltip: s.t('use_location'),
                 onPressed: state.locateMe,
-                icon: const Icon(Icons.refresh, color: Ember.textMuted),
+                icon: Icon(Icons.refresh, color: Ember.textMuted),
               ),
             ],
           ),

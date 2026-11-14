@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/anomaly.dart';
 
-/// Ember Almanac palette: charcoal background, ember accents.
+/// Fire Site palette: charcoal (dark) or warm paper (light) neutrals,
+/// ember accents in both.
 abstract final class Ember {
-  static const background = Color(0xFF14100E);
-  static const surface = Color(0xFF1F1916);
-  static const surfaceHigh = Color(0xFF2A221E);
-  static const outline = Color(0xFF3D322C);
-  static const text = Color(0xFFF3E9DC);
-  static const textMuted = Color(0xFFA8998A);
+  /// Which neutrals are active. Set from [AppState.darkMode] by the app root.
+  static bool isDark = true;
+
+  /// Brand charcoal, fixed in both modes (logo tile, native splash).
+  static const night = Color(0xFF14100E);
+
+  static Color get background => isDark ? night : const Color(0xFFFAF5EE);
+  static Color get surface =>
+      isDark ? const Color(0xFF1F1916) : const Color(0xFFFFFDF9);
+  static Color get surfaceHigh =>
+      isDark ? const Color(0xFF2A221E) : const Color(0xFFF1E8DD);
+  static Color get outline =>
+      isDark ? const Color(0xFF3D322C) : const Color(0xFFE3D6C7);
+  static Color get text =>
+      isDark ? const Color(0xFFF3E9DC) : const Color(0xFF241A15);
+  static Color get textMuted =>
+      isDark ? const Color(0xFFA8998A) : const Color(0xFF6E6055);
 
   static const ember = Color(0xFFFF6B2C);
   static const amber = Color(0xFFFFB547);
@@ -21,13 +34,13 @@ abstract final class Ember {
   /// Sequential scale for fire intensity, 0 → none, 1 → maximum.
   static Color heat(double t) {
     t = t.clamp(0.0, 1.0);
-    const stops = [
-      Color(0xFF241C18),
-      Color(0xFF5A2A17),
-      Color(0xFFA63F1B),
-      Color(0xFFFF6B2C),
-      Color(0xFFFFB547),
-      Color(0xFFFFE8A8),
+    final stops = [
+      isDark ? const Color(0xFF241C18) : const Color(0xFFEFE4D6),
+      const Color(0xFF5A2A17),
+      const Color(0xFFA63F1B),
+      const Color(0xFFFF6B2C),
+      const Color(0xFFFFB547),
+      const Color(0xFFFFE8A8),
     ];
     final scaled = t * (stops.length - 1);
     final i = scaled.floor().clamp(0, stops.length - 2);
@@ -49,24 +62,43 @@ abstract final class Ember {
       };
 }
 
-ThemeData buildEmberTheme() {
+/// Arabic pairing: IBM Plex Sans Arabic (body, same family as the Latin
+/// Plex) and Amiri, a classical Naskh serif, for headings next to Fraunces.
+/// Uses whichever neutrals [Ember.isDark] selects.
+ThemeData buildEmberTheme({bool arabic = false}) {
+  final scheme = Ember.isDark
+      ? ColorScheme.dark(
+          primary: Ember.ember,
+          secondary: Ember.amber,
+          surface: Ember.surface,
+          onSurface: Ember.text,
+          outline: Ember.outline,
+        )
+      : ColorScheme.light(
+          primary: Ember.ember,
+          secondary: Ember.amber,
+          surface: Ember.surface,
+          onSurface: Ember.text,
+          outline: Ember.outline,
+        );
   final base = ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
-      primary: Ember.ember,
-      secondary: Ember.amber,
-      surface: Ember.surface,
-      onSurface: Ember.text,
-      outline: Ember.outline,
-    ),
+    brightness: Ember.isDark ? Brightness.dark : Brightness.light,
+    colorScheme: scheme,
     scaffoldBackgroundColor: Ember.background,
   );
 
-  final body = GoogleFonts.ibmPlexSansTextTheme(base.textTheme)
+  final body = (arabic
+          ? GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme)
+          : GoogleFonts.ibmPlexSansTextTheme(base.textTheme))
       .apply(bodyColor: Ember.text, displayColor: Ember.text);
-  final display = GoogleFonts.frauncesTextTheme(base.textTheme)
+  final display = (arabic
+          ? GoogleFonts.amiriTextTheme(base.textTheme)
+          : GoogleFonts.frauncesTextTheme(base.textTheme))
       .apply(bodyColor: Ember.text, displayColor: Ember.text);
+  TextStyle sans({double? fontSize, Color? color}) => arabic
+      ? GoogleFonts.ibmPlexSansArabic(fontSize: fontSize, color: color)
+      : GoogleFonts.ibmPlexSans(fontSize: fontSize, color: color);
 
   return base.copyWith(
     textTheme: body.copyWith(
@@ -80,11 +112,20 @@ ThemeData buildEmberTheme() {
       backgroundColor: Ember.background,
       foregroundColor: Ember.text,
       elevation: 0,
-      titleTextStyle: GoogleFonts.fraunces(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-        color: Ember.text,
-      ),
+      systemOverlayStyle: Ember.isDark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
+      titleTextStyle: arabic
+          ? GoogleFonts.amiri(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Ember.text,
+            )
+          : GoogleFonts.fraunces(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Ember.text,
+            ),
     ),
     cardTheme: CardThemeData(
       color: Ember.surface,
@@ -92,25 +133,28 @@ ThemeData buildEmberTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Ember.outline),
+        side: BorderSide(color: Ember.outline),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Ember.surface,
       indicatorColor: Ember.ember.withValues(alpha: 0.22),
       labelTextStyle: WidgetStatePropertyAll(
-        GoogleFonts.ibmPlexSans(fontSize: 12, color: Ember.text),
+        sans(fontSize: 12, color: Ember.text),
       ),
     ),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: Ember.surface,
       selectedColor: Ember.ember.withValues(alpha: 0.25),
-      side: const BorderSide(color: Ember.outline),
-      labelStyle: GoogleFonts.ibmPlexSans(color: Ember.text),
+      side: BorderSide(color: Ember.outline),
+      labelStyle: sans(color: Ember.text),
     ),
   );
 }
 
-/// Monospaced numbers (IBM Plex Mono).
-TextStyle monoStyle({double size = 13, Color color = Ember.textMuted}) =>
-    GoogleFonts.ibmPlexMono(fontSize: size, color: color);
+/// Monospaced numbers (IBM Plex Mono). Arabic words in a mono label fall
+/// back to IBM Plex Sans Arabic instead of the system font.
+TextStyle monoStyle({double size = 13, Color? color}) =>
+    GoogleFonts.ibmPlexMono(fontSize: size, color: color ?? Ember.textMuted).copyWith(
+      fontFamilyFallback: [GoogleFonts.ibmPlexSansArabic().fontFamily!],
+    );
