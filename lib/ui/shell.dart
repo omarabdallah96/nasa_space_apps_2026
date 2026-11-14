@@ -8,6 +8,7 @@ import 'screens/alerts_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/settings_screen.dart';
 import 'widgets/common.dart';
 
 class AppShell extends StatefulWidget {
@@ -43,6 +44,7 @@ class _AppShellState extends State<AppShell> {
           const CalendarScreen(),
           const MapScreen(),
           AlertsScreen(onOpen: () => setState(() => _tab = 0)),
+          const SettingsScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -69,6 +71,10 @@ class _AppShellState extends State<AppShell> {
               ),
               selectedIcon: const Icon(Icons.notifications),
               label: s.t('tab_alerts')),
+          NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: s.t('settings')),
         ],
       ),
     );

@@ -104,6 +104,13 @@ void main() {
         await tester.tap(find.byIcon(icon).last);
         await settle(tester);
       }
+      // Settings tab.
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text(lang == 'ar' ? 'الإعدادات' : 'Settings'), findsWidgets);
+      await tester.drag(find.byType(ListView).last, const Offset(0, -800));
+      await settle(tester);
       expect(tester.takeException(), isNull);
     });
   }
@@ -130,16 +137,22 @@ void main() {
         Theme.of(tester.element(find.byType(Scaffold).last)).scaffoldBackgroundColor;
     final darkBg = bg();
 
-    await tester.tap(find.byIcon(Icons.light_mode_outlined));
+    // Theme lives on the Settings tab.
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Settings'), findsWidgets);
+
+    await tester.tap(find.text('Light'));
     await settle(tester);
     expect(state.darkMode, isFalse);
-    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
     expect(bg(), isNot(darkBg));
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('dark_mode'), isFalse);
 
-    await tester.tap(find.byIcon(Icons.dark_mode_outlined));
+    await tester.tap(find.text('Dark'));
     await settle(tester);
+    expect(state.darkMode, isTrue);
     expect(bg(), darkBg);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

@@ -6,7 +6,6 @@ import '../../data/models/region.dart';
 import '../../domain/anomaly.dart';
 import '../../l10n/strings.dart';
 import '../../services/alert_engine.dart';
-import '../../services/background_checks.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -53,14 +52,6 @@ class AlertsScreen extends StatelessWidget {
               icon: const Icon(Icons.notifications_active_outlined),
               label: Text(s.t('check_notify')),
             ),
-            if (BackgroundChecks.supported)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: state.backgroundChecks,
-                onChanged: state.setBackgroundChecks,
-                title: Text(s.t('background_checks')),
-                subtitle: Text(s.t('background_checks_sub'), style: monoStyle(size: 11)),
-              ),
             const SizedBox(height: 20),
             Text(s.t('active_alerts'), style: text.titleLarge?.copyWith(fontSize: 18)),
             const SizedBox(height: 8),

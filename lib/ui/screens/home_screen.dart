@@ -14,7 +14,6 @@ import '../widgets/fire_weather_card.dart';
 import '../widgets/near_me_card.dart';
 import '../widgets/season_chart.dart';
 import '../widgets/share_card.dart';
-import 'onboarding_screen.dart';
 
 /// "Is this fire season normal?" — near me, the one-sentence answer,
 /// Fire Rings, season chart, fire weather and evidence.
@@ -24,7 +23,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final state = AppScope.of(context);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
@@ -35,31 +33,6 @@ class HomeScreen extends StatelessWidget {
             child: Text(s.t('app_name'), overflow: TextOverflow.ellipsis),
           ),
         ]),
-        actions: [
-          IconButton(
-            tooltip: s.t('intro'),
-            icon: Icon(Icons.help_outline, color: Ember.textMuted),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                fullscreenDialog: true,
-                builder: (route) => OnboardingScreen(onDone: () => Navigator.pop(route)),
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: s.t(state.darkMode ? 'light_mode' : 'dark_mode'),
-            icon: Icon(
-              state.darkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              color: Ember.textMuted,
-            ),
-            onPressed: () => state.setDarkMode(!state.darkMode),
-          ),
-          TextButton(
-            onPressed: () => state.setLanguage(s.ar ? 'en' : 'ar'),
-            child: Text(s.t('language'), style: const TextStyle(color: Ember.amber)),
-          ),
-        ],
       ),
       body: Column(
         children: [

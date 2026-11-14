@@ -300,6 +300,26 @@ class S {
     'no_safe_day': 'No safe day to burn this week',
     'today': 'Today',
     'forecast_failed': 'Forecast unavailable (needs internet)',
+    // Settings
+    'settings': 'Settings',
+    'appearance': 'Appearance',
+    'theme': 'Theme',
+    'dark': 'Dark',
+    'light': 'Light',
+    'language_label': 'Language',
+    'notifications': 'Notifications',
+    'notifications_sub': 'Alerts for your watched places',
+    'allow': 'Allow',
+    'location': 'Location',
+    'location_sub': 'Used to find fires near you',
+    'located': 'Location on',
+    'refresh': 'Refresh',
+    'about': 'About',
+    'replay_intro': 'Replay intro',
+    'data_source': 'Data',
+    'data_source_sub': 'NASA FIRMS · MODIS (2000–) + VIIRS (2012–)',
+    'data_source_demo': 'Demo data · modelled on NASA FIRMS MODIS + VIIRS',
+    'version': 'Version',
   };
 
   static const _ar = <String, String>{
@@ -475,6 +495,26 @@ class S {
     'no_safe_day': 'لا يوجد يوم آمن للحرق هذا الأسبوع',
     'today': 'اليوم',
     'forecast_failed': 'التوقعات غير متوفرة (تحتاج إلى إنترنت)',
+    // Settings
+    'settings': 'الإعدادات',
+    'appearance': 'المظهر',
+    'theme': 'السمة',
+    'dark': 'داكن',
+    'light': 'فاتح',
+    'language_label': 'اللغة',
+    'notifications': 'الإشعارات',
+    'notifications_sub': 'تنبيهات للأماكن التي تتابعها',
+    'allow': 'سماح',
+    'location': 'الموقع',
+    'location_sub': 'يُستخدم لإيجاد الحرائق القريبة منك',
+    'located': 'الموقع مفعّل',
+    'refresh': 'تحديث',
+    'about': 'حول التطبيق',
+    'replay_intro': 'إعادة عرض المقدمة',
+    'data_source': 'البيانات',
+    'data_source_sub': 'ناسا FIRMS · مستشعر MODIS (منذ 2000) + VIIRS (منذ 2012)',
+    'data_source_demo': 'بيانات تجريبية · مبنية على MODIS و VIIRS من ناسا',
+    'version': 'الإصدار',
   };
 
   /// For tests.
