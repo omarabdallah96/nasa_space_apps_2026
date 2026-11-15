@@ -41,6 +41,28 @@ class MockFireRepository implements FireRepository {
     return _records[regionId] = record;
   }
 
+  /// Demo: the region's record scaled by the box's share of the region's area.
+  @override
+  Future<FireRecord> getAreaRecord(String regionId,
+      {required double west, required double south, required double east, required double north}) async {
+    final region = (await getRegions()).firstWhere((r) => r.id == regionId);
+    final share = (((east - west) * (north - south)) /
+            ((region.east - region.west) * (region.north - region.south)))
+        .clamp(0.0, 1.0);
+    final json = await _load('record_$regionId');
+    num scale(Object? v) => (v as num) * share;
+    for (final m in (json['monthly'] as List).cast<Map<String, dynamic>>()) {
+      m['raw'] = scale(m['raw']);
+      m['harmonized'] = scale(m['harmonized']);
+    }
+    for (final m in (json['season'] as List).cast<Map<String, dynamic>>()) {
+      for (final k in ['p10', 'median', 'p90']) {
+        m[k] = scale(m[k]);
+      }
+    }
+    return FireRecord.fromJson(json);
+  }
+
   @override
   Future<List<Hotspot>> getRecentHotspots(String regionId) async {
     final json = await _load('hotspots_$regionId');

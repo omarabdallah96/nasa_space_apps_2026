@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/models/hotspot.dart';
 import '../data/models/region.dart';
+import '../data/models/zone.dart';
 import '../data/repositories/fire_repository.dart';
 import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
@@ -112,7 +115,85 @@ class AppState extends ChangeNotifier {
       _kLastLon = 'last_lon',
       _kDeviceId = 'device_id',
       _kUser = 'account_user',
-      _kToken = 'auth_token';
+      _kToken = 'auth_token',
+      _kZones = 'zones',
+      _kProTest = 'pro_test';
+
+  // ── Pro and zones ──
+
+  /// Zones a free user can have; Pro raises it to [proZoneLimit].
+  static const freeZoneLimit = 1, proZoneLimit = 20;
+
+  /// Debug builds can switch Pro on to try the paid features before payments
+  /// are wired up. Ignored in release builds.
+  bool proTest = false;
+
+  bool get isPro => (user?.isPro ?? false) || (kDebugMode && proTest);
+  int get zoneLimit => isPro ? proZoneLimit : freeZoneLimit;
+
+  /// Circles drawn on the map; alerts cover the first [zoneLimit] of them.
+  List<AlertZone> zones = const [];
+
+  /// Zones that get alerts. Zones beyond the limit (after Pro ends) are kept, paused.
+  List<AlertZone> get activeZones => zones.take(zoneLimit).toList();
+  bool get canAddZone => zones.length < zoneLimit;
+
+  void setProTest(bool on) {
+    proTest = on;
+    _prefs.setBool(_kProTest, on);
+    notifyListeners();
+    checkAlerts();
+  }
+
+  /// Returns false when the limit is reached (the UI then shows the paywall).
+  Future<bool> addZone(String name, LatLng center, double radiusKm) async {
+    if (!canAddZone) return false;
+    zones = [
+      ...zones,
+      AlertZone(
+        id: DateTime.now().microsecondsSinceEpoch.toRadixString(36),
+        name: name.trim(),
+        center: center,
+        radiusKm: radiusKm.clamp(AlertZone.minRadiusKm, AlertZone.maxRadiusKm),
+        createdAt: DateTime.now(),
+      ),
+    ];
+    await _saveZones();
+    checkAlerts();
+    return true;
+  }
+
+  Future<void> updateZone(String id, {String? name, double? radiusKm}) async {
+    zones = [
+      for (final z in zones)
+        z.id == id ? z.copyWith(name: name?.trim(), radiusKm: radiusKm) : z,
+    ];
+    await _saveZones();
+    checkAlerts();
+  }
+
+  Future<void> deleteZone(String id) async {
+    zones = zones.where((z) => z.id != id).toList();
+    await _saveZones();
+    checkAlerts();
+  }
+
+  Future<void> _saveZones() async {
+    notifyListeners();
+    await _prefs.setString(_kZones, jsonEncode([for (final z in zones) z.toJson()]));
+  }
+
+  List<AlertZone> _loadZones() {
+    final text = _prefs.getString(_kZones);
+    if (text == null) return const [];
+    try {
+      return [
+        for (final j in jsonDecode(text) as List) AlertZone.fromJson(j as Map<String, dynamic>),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// Random id for this install, so the backend can tell a retry from a new
   /// report. Not tied to the person or the hardware.
@@ -174,6 +255,8 @@ class AppState extends ChangeNotifier {
     final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
     if (lat != null && lon != null) lastKnownPosition = LatLng(lat, lon);
     await _restoreAccount();
+    zones = _loadZones();
+    proTest = _prefs.getBool(_kProTest) ?? false;
     try {
       regions = await repository.getRegions();
       selected = regions.firstWhere(
@@ -350,10 +433,14 @@ class AppState extends ChangeNotifier {
     await syncReports();
     final ids = {...watchlist, ?userRegion?.region.id};
     final found = <FireAlert>[];
+    // Zones reuse the hotspots fetched for their region.
+    final spotCache = <String, Future<List<Hotspot>>>{};
+    Future<List<Hotspot>> spotsOf(String id) =>
+        spotCache[id] ??= repository.getRecentHotspots(id);
     for (final r in regions.where((r) => ids.contains(r.id))) {
       try {
         final record = await repository.getRecord(r.id);
-        final spots = await repository.getRecentHotspots(r.id);
+        final spots = await spotsOf(r.id);
         found.addAll(alertEngine.evaluate(
           region: r,
           record: record,
@@ -367,11 +454,48 @@ class AppState extends ChangeNotifier {
     }
     found.addAll(await _dangerAlerts(ids));
     found.addAll(_smokeAlerts(ids));
+    found.addAll(await _zoneAlerts(spotsOf));
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
     alerts = found;
     checkingAlerts = false;
     notifyListeners();
     if (notify) await _notify(found, onlyNew: onlyNew);
+  }
+
+  /// Per active zone: satellite fires inside it, a fire located by smoke
+  /// reports inside it, and very high danger forecast at its center.
+  Future<List<FireAlert>> _zoneAlerts(Future<List<Hotspot>> Function(String) spotsOf) async {
+    final out = <FireAlert>[];
+    for (final z in activeZones) {
+      final region = matchRegion(regions, z.center)?.region;
+      if (region == null) continue;
+      try {
+        final a = alertEngine.zoneFire(zone: z, region: region, hotspots: await spotsOf(region.id));
+        if (a != null) out.add(a);
+      } catch (_) {
+        // No hotspots now; the forecast below still counts.
+      }
+      try {
+        final f = await repository.getDangerForecast(z.center);
+        final a = alertEngine.dangerAlert(region: region, days: f.days, now: DateTime.now(), zone: z);
+        if (a != null) out.add(a);
+      } catch (_) {
+        // Outside forecast coverage, or offline.
+      }
+      for (final e in smokeEstimates.where((e) => z.contains(e.center))) {
+        out.add(FireAlert(
+          type: AlertType.groundSmoke,
+          level: AlertLevel.danger,
+          region: region,
+          zone: z,
+          count: e.reports.length,
+          distanceKm: distanceKm(z.center, e.center),
+          compass: compassIndex(z.center, e.center),
+          estimateKey: '${e.center.latitude.toStringAsFixed(2)},${e.center.longitude.toStringAsFixed(2)}',
+        ));
+      }
+    }
+    return out;
   }
 
   /// Very high or extreme fire danger forecast: near the user when their

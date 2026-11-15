@@ -72,8 +72,9 @@ class S {
   }
 
   String alertTitle(FireAlert a) {
-    final place = region(a.region);
+    final place = a.zone?.name ?? region(a.region);
     return switch (a.type) {
+      AlertType.zoneFire => ar ? '$place: حريق داخل منطقتك' : '$place: fire inside your zone',
       AlertType.anomaly => ar
           ? '$place: نشاط حرائق ${status(a.summary!.status)}'
           : '$place: ${status(a.summary!.status).toLowerCase()} fire activity',
@@ -89,7 +90,13 @@ class S {
   }
 
   String alertBody(FireAlert a) {
+    final zone = a.zone != null;
     switch (a.type) {
+      case AlertType.zoneFire:
+        final d = a.distanceKm!.toStringAsFixed(a.distanceKm! < 10 ? 1 : 0);
+        return ar
+            ? '${a.count} رصد بالأقمار الصناعية داخل المنطقة خلال آخر 48 ساعة، أقربها على بعد $d كم باتجاه ${compass(a.compass!)} من مركزها.'
+            : '${a.count} satellite detections inside the zone in the last 48 h, the nearest $d km ${compass(a.compass!)} of its center.';
       case AlertType.anomaly:
         return sentence(a.summary!, a.region);
       case AlertType.seasonSoon:
@@ -114,8 +121,8 @@ class S {
         final where = a.distanceKm == null
             ? ''
             : ar
-                ? ' على بعد ${a.distanceKm!.toStringAsFixed(1)} كم باتجاه ${compass(a.compass!)}'
-                : ' ${a.distanceKm!.toStringAsFixed(1)} km ${compass(a.compass!)} of you';
+                ? ' على بعد ${a.distanceKm!.toStringAsFixed(1)} كم باتجاه ${compass(a.compass!)}${zone ? ' من مركز المنطقة' : ''}'
+                : ' ${a.distanceKm!.toStringAsFixed(1)} km ${compass(a.compass!)} of ${zone ? 'the zone center' : 'you'}';
         return ar
             ? '${a.count} بلاغات دخان تتقاطع عند حريق محتمل$where.'
             : '${a.count} smoke reports cross at a likely fire$where.';
@@ -125,7 +132,11 @@ class S {
             : a.days == 1
                 ? t('tomorrow')
                 : weekday(a.date!.weekday);
-        final where = a.distanceKm != null ? (ar ? ' بالقرب منك' : ' near you') : '';
+        final where = zone
+            ? (ar ? ' في المنطقة' : ' in the zone')
+            : a.distanceKm != null
+                ? (ar ? ' بالقرب منك' : ' near you')
+                : '';
         return ar
             ? '$when: خطر حرائق ${danger(a.danger!)}$where. ${t('danger_advice_high')}'
             : '$when: ${danger(a.danger!).toLowerCase()} fire danger$where. ${t('danger_advice_high')}';

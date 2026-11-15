@@ -9,12 +9,17 @@ class AccountUser {
     required this.email,
     required this.name,
     required this.createdAt,
+    this.plan = 'free',
   });
 
   final String id;
   final String email;
   final String name;
   final DateTime createdAt;
+
+  /// 'free' or 'pro'. Set on the server (by a purchase, or by an admin).
+  final String plan;
+  bool get isPro => plan == 'pro';
 
   /// The name when set, otherwise the part of the email before the @.
   String get displayName => name.isNotEmpty ? name : email.split('@').first;
@@ -24,6 +29,7 @@ class AccountUser {
         email: j['email'] as String,
         name: j['name'] as String? ?? '',
         createdAt: DateTime.parse(j['createdAt'] as String),
+        plan: j['plan'] as String? ?? 'free',
       );
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +37,7 @@ class AccountUser {
         'email': email,
         'name': name,
         'createdAt': createdAt.toUtc().toIso8601String(),
+        'plan': plan,
       };
 }
 

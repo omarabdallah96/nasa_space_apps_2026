@@ -13,6 +13,10 @@ import '../models/region.dart';
 abstract class FireRepository {
   Future<List<Region>> getRegions();
   Future<FireRecord> getRecord(String regionId);
+
+  /// The harmonized record for a box inside a region (a zone report).
+  Future<FireRecord> getAreaRecord(String regionId,
+      {required double west, required double south, required double east, required double north});
   Future<List<Hotspot>> getRecentHotspots(String regionId);
 
   /// Fire danger forecast for the next 7 days at the grid point nearest [point].

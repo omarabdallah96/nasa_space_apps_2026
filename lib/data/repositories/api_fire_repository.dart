@@ -112,6 +112,19 @@ class ApiFireRepository implements FireRepository {
     return _records[regionId] = record;
   }
 
+  @override
+  Future<FireRecord> getAreaRecord(String regionId,
+      {required double west, required double south, required double east, required double north}) async {
+    String f(double x) => x.toStringAsFixed(3);
+    final box = 'bbox=${f(west)},${f(south)},${f(east)},${f(north)}';
+    final results = await Future.wait([
+      _get('countries/$regionId/calendar?mode=harmonized&$box'),
+      _get('countries/$regionId/calendar?mode=raw&$box'),
+      _get('countries/$regionId/method?$box'),
+    ]);
+    return FireRecord.fromJson(recordFromApi(regionId, results[0], results[1], results[2]));
+  }
+
   /// Builds a docs/api_contract.md record from the backend's calendars and method.
   @visibleForTesting
   static Map<String, dynamic> recordFromApi(

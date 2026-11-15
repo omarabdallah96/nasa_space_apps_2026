@@ -4,10 +4,11 @@ import '../data/models/danger_forecast.dart';
 import '../data/models/fire_record.dart';
 import '../data/models/hotspot.dart';
 import '../data/models/region.dart';
+import '../data/models/zone.dart';
 import '../domain/anomaly.dart';
 import 'location_service.dart';
 
-enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke, dangerForecast }
+enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke, dangerForecast, zoneFire }
 
 enum AlertLevel { info, warning, danger }
 
@@ -28,6 +29,7 @@ class FireAlert {
     this.estimateKey,
     this.danger,
     this.date,
+    this.zone,
   });
 
   final AlertType type;
@@ -48,8 +50,12 @@ class FireAlert {
   final DangerLevel? danger;
   final DateTime? date;
 
+  /// Set when the alert is for one of the user's zones; [region] is then the
+  /// region the zone lies in.
+  final AlertZone? zone;
+
   /// Stable id, used so the same alert is not notified twice.
-  String get id => '${type.name}_${region.id}_${summary?.year ?? ''}'
+  String get id => '${type.name}_${region.id}${zone == null ? '' : '_z${zone!.id}'}_${summary?.year ?? ''}'
       '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}_${estimateKey ?? ''}'
       '${danger == null ? '' : '_${danger!.name}_${date!.year}-${date!.month}-${date!.day}'}';
 }
@@ -152,6 +158,7 @@ class AlertEngine {
     required List<DangerDay> days,
     required DateTime now,
     bool nearUser = false,
+    AlertZone? zone,
   }) {
     final today = DateTime(now.year, now.month, now.day);
     DangerDay? worst;
@@ -169,6 +176,24 @@ class AlertEngine {
       date: worst.date,
       days: worst.date.difference(today).inDays,
       distanceKm: nearUser ? 0 : null,
+      zone: zone,
+    );
+  }
+
+  /// Satellite detections inside a zone. Danger when one is within 2 km of
+  /// its center or there are many; the nearest is measured from the center.
+  FireAlert? zoneFire({required AlertZone zone, required Region region, required List<Hotspot> hotspots}) {
+    final inside = hotspots.where((h) => h.confidence != 'low' && zone.contains(h.position)).toList();
+    final near = nearestHotspot(inside, zone.center);
+    if (near == null) return null;
+    return FireAlert(
+      type: AlertType.zoneFire,
+      level: near.distanceKm <= 2 || inside.length >= 5 ? AlertLevel.danger : AlertLevel.warning,
+      region: region,
+      zone: zone,
+      count: inside.length,
+      distanceKm: near.distanceKm,
+      compass: near.compass,
     );
   }
 
