@@ -16,6 +16,7 @@ import '../widgets/danger_forecast_card.dart';
 import '../widgets/fire_rings.dart';
 import '../widgets/fire_weather_card.dart';
 import '../widgets/near_me_card.dart';
+import '../widgets/air_card.dart';
 import '../widgets/nearest_help_card.dart';
 import '../widgets/season_chart.dart';
 import '../widgets/share_card.dart';
@@ -150,6 +151,7 @@ class _HomeBody extends StatelessWidget {
         // 3. Around me.
         const NearMeCard(),
         const NearestHelpCard(),
+        const AirCard(),
         const SizedBox(height: 16),
         // 4. What is coming.
         DangerForecastCard(point: weatherPoint),
@@ -348,6 +350,28 @@ class _QuickActions extends StatelessWidget {
           onTap: () async {
             final messenger = ScaffoldMessenger.of(context);
             final uri = Uri(scheme: 'tel', path: '125');
+            if (!await launchUrl(uri)) {
+              messenger.showSnackBar(
+                  SnackBar(content: Text('${s.t('could_not_open')} $uri')));
+            }
+          },
+        ),
+        const SizedBox(width: 8),
+        _ActionTile(
+          icon: Icons.sms_outlined,
+          label: s.t('sms_location'),
+          color: Ember.extreme,
+          onTap: () async {
+            final state = AppScope.read(context);
+            final messenger = ScaffoldMessenger.of(context);
+            if (state.userPosition == null) await state.locateMe();
+            final pos = state.userPosition;
+            final where = pos == null
+                ? ''
+                : ' https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
+            final uri = Uri(scheme: 'sms', path: '125', queryParameters: {
+              'body': '${s.t('sms_text')}$where',
+            });
             if (!await launchUrl(uri)) {
               messenger.showSnackBar(
                   SnackBar(content: Text('${s.t('could_not_open')} $uri')));

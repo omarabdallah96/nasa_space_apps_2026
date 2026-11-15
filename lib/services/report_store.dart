@@ -24,6 +24,7 @@ class FieldReport {
     this.bearing,
     this.remoteId,
     this.deleteToken,
+    this.photoUrl,
   });
 
   final String id;
@@ -44,6 +45,12 @@ class FieldReport {
 
   /// Lets this phone delete its own report from the backend.
   final String? deleteToken;
+
+  /// Photo of a report someone else sent, served by the backend. Not saved
+  /// on the phone: shared reports are downloaded again on every sync.
+  final String? photoUrl;
+
+  bool get hasPhoto => photoPath != null || photoUrl != null;
 
   bool get uploaded => remoteId != null;
 

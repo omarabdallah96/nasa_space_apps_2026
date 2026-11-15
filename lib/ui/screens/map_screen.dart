@@ -13,6 +13,7 @@ import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/danger_forecast_card.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/zones_section.dart';
 import 'report_screen.dart';
 import 'safety_screen.dart';
@@ -225,14 +226,29 @@ class _MapScreenState extends State<MapScreen> {
                                   child: _HotspotDot(h.frp),
                                 ),
                               ),
-                            for (final r in state.reports)
+                            for (final (r, mine) in [
+                              for (final r in state.othersReports) (r, false),
+                              for (final r in state.reports) (r, true),
+                            ])
                               Marker(
                                 point: r.position,
-                                width: 26,
-                                height: 26,
-                                child: Icon(_labelIcon(r.label),
-                                    color: Ember.calm, size: 22,
-                                    shadows: const [Shadow(blurRadius: 4)]),
+                                width: 34,
+                                height: 34,
+                                child: GestureDetector(
+                                  onTap: () => showReportSheet(context, r, mine: mine),
+                                  child: Stack(alignment: Alignment.center, children: [
+                                    Icon(_labelIcon(r.label),
+                                        color: mine ? Ember.calm : Ember.amber, size: 22,
+                                        shadows: const [Shadow(blurRadius: 4)]),
+                                    if (r.hasPhoto)
+                                      const PositionedDirectional(
+                                        end: 0,
+                                        bottom: 0,
+                                        child: Icon(Icons.photo_camera, size: 12, color: Colors.white,
+                                            shadows: [Shadow(blurRadius: 3)]),
+                                      ),
+                                  ]),
+                                ),
                               ),
                             if (state.userPosition != null)
                               Marker(
@@ -376,6 +392,8 @@ class _MapScreenState extends State<MapScreen> {
               row(const _YouDot(), s.t('legend_you')),
               row(const Icon(Icons.local_fire_department, color: Ember.calm, size: 22),
                   s.t('legend_report')),
+              row(const Icon(Icons.local_fire_department, color: Ember.amber, size: 22),
+                  s.t('legend_report_others')),
               row(
                 Container(
                   width: 28,

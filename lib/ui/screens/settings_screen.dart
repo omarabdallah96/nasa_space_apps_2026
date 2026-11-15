@@ -8,6 +8,7 @@ import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_api.dart';
 import '../brand/ember_logo.dart';
+import '../widgets/zones_section.dart';
 import 'auth_screen.dart';
 import 'paywall.dart';
 import 'onboarding_screen.dart';
@@ -289,6 +290,15 @@ class _SettingsScreenState extends State<SettingsScreen>
               title: s.t('watched_places'),
               subtitle: watched.isEmpty ? s.t('none_yet') : watched.join(', '),
               onTap: _openWatchedPlaces,
+            ),
+            _NavRow(
+              key: const ValueKey('alert_zones'),
+              icon: Icons.radar,
+              title: s.t('zones_title'),
+              subtitle: state.zones.isEmpty
+                  ? s.t('none_yet')
+                  : state.zones.map((z) => z.name).join(', '),
+              onTap: () => ZonesScreen.open(context),
             ),
             ListTile(
               onTap: state.locating ? null : state.locateMe,

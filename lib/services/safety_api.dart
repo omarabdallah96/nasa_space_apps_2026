@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/models/air.dart';
 import '../data/models/safety.dart';
 import '../data/models/zone.dart';
 
@@ -87,6 +88,18 @@ class SafetyApi {
   static double _d2(LatLng a, LatLng b) {
     final dy = a.latitude - b.latitude, dx = a.longitude - b.longitude;
     return dx * dx + dy * dy;
+  }
+
+  /// Air quality now and for the next 24 hours (`GET /air`), with the advice
+  /// written by the server in [lang] (en or ar).
+  Future<Saved<AirQuality>> air(LatLng at, {required String lang}) async {
+    final l = lang == 'ar' ? 'ar' : 'en';
+    final saved = await _get(
+      'air.${_p(at, 2)}.$l',
+      Uri.parse('$baseUrl/air?lat=${at.latitude.toStringAsFixed(3)}'
+          '&lon=${at.longitude.toStringAsFixed(3)}&lang=$l'),
+    );
+    return Saved(AirQuality.fromJson(saved.value), savedAt: saved.savedAt);
   }
 
   Future<Saved<Map<String, dynamic>>> _get(String key, Uri uri) async {

@@ -306,11 +306,14 @@ class AppState extends ChangeNotifier {
     return id;
   }
 
-  /// Everything triangulation can use: this phone's reports and everyone else's.
-  List<FieldReport> get _allReports {
+  /// Recent reports from other people (this phone's own uploads left out).
+  List<FieldReport> get othersReports {
     final mine = reports.map((r) => r.remoteId).whereType<String>().toSet();
-    return [...reports, ...sharedReports.where((r) => !mine.contains(r.remoteId))];
+    return [...sharedReports.where((r) => !mine.contains(r.remoteId))];
   }
+
+  /// Everything triangulation can use: this phone's reports and everyone else's.
+  List<FieldReport> get _allReports => [...reports, ...othersReports];
 
   /// Sends reports not uploaded yet, then downloads recent ones from others.
   /// Failures are ignored: the next check tries again.

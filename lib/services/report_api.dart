@@ -67,7 +67,7 @@ class ReportApi {
         throw HttpException('GET /reports → ${res.statusCode}');
       }
       final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      out.addAll((json['reports'] as List).map((e) => fromApi(e as Map<String, dynamic>)));
+      out.addAll((json['reports'] as List).map((e) => fromApi(e as Map<String, dynamic>, baseUrl: baseUrl)));
     }
     return out;
   }
@@ -80,9 +80,10 @@ class ReportApi {
     }
   }
 
-  /// A report someone else sent. Its photo stays on the server.
+  /// A report someone else sent. Its photo stays on the server and is
+  /// loaded from [baseUrl] when shown.
   @visibleForTesting
-  static FieldReport fromApi(Map<String, dynamic> j) => FieldReport(
+  static FieldReport fromApi(Map<String, dynamic> j, {String? baseUrl}) => FieldReport(
         id: 'remote-${j['id']}',
         remoteId: j['id'] as String,
         position: LatLng((j['lat'] as num).toDouble(), (j['lon'] as num).toDouble()),
@@ -95,5 +96,8 @@ class ReportApi {
             ? null
             : DateTime.parse(j['hotspotTime'] as String),
         bearing: (j['bearing'] as num?)?.toDouble(),
+        photoUrl: baseUrl != null && j['hasPhoto'] == true
+            ? '$baseUrl/reports/${Uri.encodeComponent(j['id'] as String)}/photo'
+            : null,
       );
 }

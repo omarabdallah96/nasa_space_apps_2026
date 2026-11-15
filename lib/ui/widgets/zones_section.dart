@@ -9,10 +9,13 @@ import '../screens/safety_screen.dart';
 import '../screens/zone_editor_screen.dart';
 import '../screens/zone_report_screen.dart';
 
-/// "My alert zones" on the Alerts tab: the zones, how many are free, and a
+/// "My alert zones": the zones, how many are free, and a
 /// button to add one (the paywall when the free zone is used).
 class ZonesSection extends StatelessWidget {
-  const ZonesSection({super.key});
+  const ZonesSection({super.key, this.showTitle = true});
+
+  /// Off when the page's app bar already names the section.
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +29,9 @@ class ZonesSection extends StatelessWidget {
       children: [
         Row(children: [
           Expanded(
-            child: Text(s.t('zones_title'), style: text.titleLarge?.copyWith(fontSize: 18)),
+            child: showTitle
+                ? Text(s.t('zones_title'), style: text.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w700))
+                : const SizedBox.shrink(),
           ),
           if (state.isPro)
             const Icon(Icons.workspace_premium, color: Ember.amber, size: 20)
@@ -53,6 +58,23 @@ class ZonesSection extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Full-page home for the user's alert zones, opened from Settings.
+class ZonesScreen extends StatelessWidget {
+  const ZonesScreen({super.key});
+
+  static Future<void> open(BuildContext context) => Navigator.push(
+      context, MaterialPageRoute<void>(builder: (_) => const ZonesScreen()));
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(S.of(context).t('zones_title'))),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: const [ZonesSection(showTitle: false)],
+        ),
+      );
 }
 
 class ZoneTile extends StatelessWidget {

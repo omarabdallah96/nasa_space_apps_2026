@@ -142,7 +142,7 @@ class SectionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(title, style: text.titleLarge?.copyWith(fontSize: 18))),
+                Expanded(child: Text(title, style: text.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w700))),
                 if (info != null) InfoButton(title: title, body: info!),
                 ?trailing,
               ],
