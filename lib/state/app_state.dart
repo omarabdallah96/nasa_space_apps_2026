@@ -17,6 +17,8 @@ import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
 import '../services/auth_api.dart';
 import '../services/broadcast_api.dart';
+import '../services/device_api.dart';
+import '../services/push_service.dart';
 import '../services/background_checks.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
@@ -37,6 +39,8 @@ class AppState extends ChangeNotifier {
     this.reportApi,
     this.authApi,
     this.broadcastApi,
+    this.deviceApi,
+    this.push,
     FlutterSecureStorage? secureStorage,
   })  : _prefs = prefs,
         _secure = secureStorage ?? const FlutterSecureStorage(),
@@ -57,6 +61,18 @@ class AppState extends ChangeNotifier {
 
   /// Zone alerts sent from the admin page; null in demo mode.
   final BroadcastApi? broadcastApi;
+
+  /// Instant alerts: registers this phone (push token, zones, last location)
+  /// with the server, which pushes zone alerts through Firebase. Null in demo mode.
+  final DeviceApi? deviceApi;
+  final PushService? push;
+
+  /// The person's choice for instant alerts; null until they are asked.
+  bool? instantAlerts;
+  bool get instantAlertsAvailable => deviceApi != null;
+
+  /// When [lastKnownPosition] was taken.
+  DateTime? lastLocatedAt;
 
   /// Optional accounts; null (demo mode) means everyone is a guest.
   final AuthApi? authApi;
@@ -122,6 +138,8 @@ class AppState extends ChangeNotifier {
       _kUser = 'account_user',
       _kToken = 'auth_token',
       _kZones = 'zones',
+      _kInstant = 'instant_alerts',
+      _kLocatedAt = 'last_located_at',
       _kProTest = 'pro_test';
 
   // ── Pro and zones ──
@@ -186,6 +204,7 @@ class AppState extends ChangeNotifier {
   Future<void> _saveZones() async {
     notifyListeners();
     await _prefs.setString(_kZones, jsonEncode([for (final z in zones) z.toJson()]));
+    unawaited(syncDevice());
   }
 
   List<AlertZone> _loadZones() {
@@ -262,6 +281,9 @@ class AppState extends ChangeNotifier {
     await _restoreAccount();
     zones = _loadZones();
     proTest = _prefs.getBool(_kProTest) ?? false;
+    instantAlerts = _prefs.getBool(_kInstant);
+    final at = _prefs.getString(_kLocatedAt);
+    lastLocatedAt = at == null ? null : DateTime.tryParse(at);
     try {
       regions = await repository.getRegions();
       selected = regions.firstWhere(
@@ -356,8 +378,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _setUser(AccountUser u, String token) async {
+    final linked = _token == token;
     user = u;
     _token = token;
+    if (!linked) unawaited(syncDevice());
     await _secure.write(key: _kToken, value: token);
     await _prefs.setString(_kUser, jsonEncode(u.toJson()));
     notifyListeners();
@@ -367,6 +391,7 @@ class AppState extends ChangeNotifier {
     user = null;
     _token = null;
     notifyListeners();
+    unawaited(syncDevice()); // unlinks the phone from the account
     await _prefs.remove(_kUser);
     try {
       await _secure.delete(key: _kToken);
@@ -400,6 +425,7 @@ class AppState extends ChangeNotifier {
     languageCode = code;
     _prefs.setString(_kLang, code);
     notifyListeners();
+    unawaited(syncDevice()); // pushes come in the phone's language
   }
 
   void setDarkMode(bool dark) {
@@ -415,10 +441,7 @@ class AppState extends ChangeNotifier {
     locationError = null;
     notifyListeners();
     try {
-      userPosition = await location.currentPosition();
-      lastKnownPosition = userPosition;
-      _prefs.setDouble(_kLastLat, userPosition!.latitude);
-      _prefs.setDouble(_kLastLon, userPosition!.longitude);
+      _savePosition(await location.currentPosition());
       userRegion = matchRegion(regions, userPosition!);
       if (userRegion != null) selected = userRegion!.region;
     } on LocationException catch (e) {
@@ -428,7 +451,96 @@ class AppState extends ChangeNotifier {
     }
     locating = false;
     notifyListeners();
-    if (userPosition != null) checkAlerts();
+    if (userPosition != null) {
+      checkAlerts();
+      unawaited(syncDevice());
+    }
+  }
+
+  void _savePosition(LatLng p) {
+    userPosition = p;
+    lastKnownPosition = p;
+    lastLocatedAt = DateTime.now();
+    _prefs.setDouble(_kLastLat, p.latitude);
+    _prefs.setDouble(_kLastLon, p.longitude);
+    _prefs.setString(_kLocatedAt, lastLocatedAt!.toUtc().toIso8601String());
+  }
+
+  // ── Instant alerts (push) ──
+
+  StreamSubscription<String>? _tokenSub;
+  StreamSubscription<dynamic>? _messageSub;
+
+  /// Foreground app start: Firebase, a fresh last location when location is
+  /// already allowed (no prompt), then the device registration.
+  Future<void> startForeground() async {
+    final p = push;
+    if (p != null && await p.init()) {
+      _tokenSub ??= p.onTokenRefresh.listen((_) => syncDevice());
+      _messageSub ??= p.onForeground.listen((m) async {
+        // Open app: the system does not show it, so show it here.
+        await rememberPushed(_prefs, m.data['broadcastId']);
+        final n = m.notification;
+        if (n != null) {
+          await notifications.show(
+            id: (m.messageId ?? n.title ?? '').hashCode & 0x7fffffff,
+            title: n.title ?? '',
+            body: n.body ?? '',
+            urgent: m.data['level'] == 'danger',
+          );
+        }
+        checkAlerts(); // shows it in the Alerts tab
+      });
+    }
+    final here = await location.positionIfAllowed();
+    if (here != null) {
+      _savePosition(here);
+      userRegion = matchRegion(regions, here);
+      notifyListeners();
+    }
+    await syncDevice();
+  }
+
+  /// Turns instant alerts on (registers the phone) or off (deletes it from the server).
+  Future<void> setInstantAlerts(bool on) async {
+    instantAlerts = on;
+    await _prefs.setBool(_kInstant, on);
+    notifyListeners();
+    if (on) {
+      await syncDevice();
+    } else {
+      try {
+        await deviceApi?.unregister(_deviceId);
+      } catch (_) {
+        // Offline: the server forgets phones it has not heard from in 120 days.
+      }
+      await push?.deleteToken();
+    }
+  }
+
+  /// Sends the push token, zones and last location to the server. Quietly
+  /// does nothing when instant alerts are off or the server is unreachable.
+  Future<void> syncDevice() async {
+    final api = deviceApi;
+    if (api == null || instantAlerts != true) return;
+    try {
+      await api.register(
+        installationId: _deviceId,
+        pushToken: await push?.token(),
+        platform: switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          _ => 'other',
+        },
+        lang: languageCode,
+        zones: activeZones,
+        location: lastKnownPosition,
+        locatedAt: lastLocatedAt,
+        authToken: _token,
+      );
+    } catch (e) {
+      debugPrint('instant alerts: not registered ($e)');
+    }
   }
 
   /// Evaluates alerts for every watched region (plus the user's region).
@@ -588,7 +700,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> _notify(List<FireAlert> list, {required bool onlyNew}) async {
     final seen = (_prefs.getStringList(_kNotified) ?? const []).toSet();
-    final toSend = onlyNew ? list.where((a) => !seen.contains(a.id)).toList() : list;
+    // Zone alerts that already arrived by push are not shown twice.
+    final pushed = (_prefs.getStringList(pushedBroadcastsKey) ?? const []).toSet();
+    final toSend = (onlyNew ? list.where((a) => !seen.contains(a.id)) : list)
+        .where((a) => a.broadcast == null || !pushed.contains(a.broadcast!.id))
+        .toList();
     if (toSend.isEmpty) return;
     final s = S(languageCode == 'ar');
     for (final a in toSend.where((a) => a.level != AlertLevel.info || !onlyNew)) {

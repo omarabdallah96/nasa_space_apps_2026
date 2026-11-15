@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 import 'services/background_checks.dart';
+import 'services/push_service.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'ui/screens/splash_screen.dart';
@@ -15,7 +18,9 @@ Future<void> main() async {
       prefs: prefs,
       reportApi: createReportApi(),
       authApi: createAuthApi(),
-      broadcastApi: createBroadcastApi());
+      broadcastApi: createBroadcastApi(),
+      deviceApi: createDeviceApi(),
+      push: PushService());
   try {
     await state.notifications.init();
   } catch (_) {
@@ -28,7 +33,10 @@ Future<void> main() async {
   } catch (_) {
     // Never block app start on background scheduling.
   }
-  runApp(FiresightApp(state: state..init()));
+  runApp(FiresightApp(state: state));
+  await state.init();
+  // Firebase push, a fresh last location, and the instant-alerts registration.
+  unawaited(state.startForeground());
 }
 
 class FiresightApp extends StatelessWidget {

@@ -8,6 +8,16 @@
         android:label="Firesight"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+        <!-- Push notifications (Firebase): icon, color and channel when the message names none. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_ember" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ember_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="fire_alerts" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

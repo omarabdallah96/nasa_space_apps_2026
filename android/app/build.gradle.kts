@@ -5,6 +5,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase push needs android/app/google-services.json (from the Firebase
+// console). Without it the app still builds; push is just off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.nasa_space_apps_2026"
     compileSdk = flutter.compileSdkVersion

@@ -17,6 +17,25 @@ class LocationException implements Exception {
 class LocationService {
   const LocationService();
 
+  /// The position without asking anything: null when location is off or not
+  /// allowed yet. Used to keep the last location fresh at app start.
+  Future<LatLng?> positionIfAllowed() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) return null;
+      final p = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      return LatLng(p.latitude, p.longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<LatLng> currentPosition() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const LocationException('loc_off');

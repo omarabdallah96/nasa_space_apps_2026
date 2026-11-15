@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#14100E</color>
+    <!-- Push notification accent (AndroidManifest.xml). -->
+    <color name="ember_notification">#FF6B2C</color>
 </resources>

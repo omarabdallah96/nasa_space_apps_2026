@@ -20,6 +20,38 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _tab = 0;
+  bool _askedInstant = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _askInstantAlerts());
+  }
+
+  /// Once: offer instant (push) alerts, saying what the server keeps.
+  Future<void> _askInstantAlerts() async {
+    final state = AppScope.read(context);
+    if (_askedInstant || !state.instantAlertsAvailable || state.instantAlerts != null) return;
+    _askedInstant = true;
+    final s = S.of(context);
+    final on = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        icon: const Icon(Icons.bolt, color: Ember.ember, size: 32),
+        title: Text(s.t('instant_alerts_ask')),
+        content: Text(s.t('instant_alerts_ask_body')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(s.t('not_now'))),
+          FilledButton(
+            key: const ValueKey('instant_on'),
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(s.t('turn_on')),
+          ),
+        ],
+      ),
+    );
+    if (on != null) await state.setInstantAlerts(on);
+  }
 
   @override
   Widget build(BuildContext context) {

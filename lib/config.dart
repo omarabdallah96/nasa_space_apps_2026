@@ -3,6 +3,7 @@ import 'data/repositories/fire_repository.dart';
 import 'data/repositories/mock_fire_repository.dart';
 import 'services/auth_api.dart';
 import 'services/broadcast_api.dart';
+import 'services/device_api.dart';
 import 'services/report_api.dart';
 
 /// Live data from the Firesight backend. Build with
@@ -26,3 +27,6 @@ AuthApi? createAuthApi() => useMockData ? null : AuthApi(baseUrl: apiBaseUrl);
 
 /// Zone alerts sent from the admin page; demo mode has none.
 BroadcastApi? createBroadcastApi() => useMockData ? null : BroadcastApi(baseUrl: apiBaseUrl);
+
+/// Instant alerts: phone registration for push; demo mode has none.
+DeviceApi? createDeviceApi() => useMockData ? null : DeviceApi(baseUrl: apiBaseUrl);

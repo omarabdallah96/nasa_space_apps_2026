@@ -25,6 +25,22 @@ class NotificationService {
         ),
       ),
     );
+    // Create the channels now, so push notifications (which name them) use
+    // them even before the app has shown a local notification.
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(const AndroidNotificationChannel(
+      'fire_alerts',
+      'Fire alerts',
+      description: 'Fire activity alerts for your watched places',
+      importance: Importance.high,
+    ));
+    await android?.createNotificationChannel(const AndroidNotificationChannel(
+      'fire_urgent',
+      'Urgent fire alerts',
+      description: 'Fire activity alerts for your watched places',
+      importance: Importance.max,
+    ));
     _ready = true;
   }
 

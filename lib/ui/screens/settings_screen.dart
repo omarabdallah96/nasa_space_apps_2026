@@ -242,6 +242,15 @@ class _SettingsScreenState extends State<SettingsScreen>
               value: _notificationsAllowed,
               onChanged: state.notifications.supported ? _toggleNotifications : null,
             ),
+            if (state.instantAlertsAvailable)
+              _SwitchRow(
+                key: const ValueKey('instant_alerts'),
+                icon: Icons.bolt,
+                title: s.t('instant_alerts'),
+                subtitle: s.t('instant_alerts_sub'),
+                value: state.instantAlerts ?? false,
+                onChanged: state.setInstantAlerts,
+              ),
             if (BackgroundChecks.supported)
               _SwitchRow(
                 icon: Icons.schedule,
@@ -481,6 +490,7 @@ class _Group extends StatelessWidget {
 /// A whole-row switch: tapping anywhere on the row flips it.
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,
