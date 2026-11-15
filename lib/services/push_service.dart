@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../firebase_options.dart';
+
 /// Key of the zone alerts already shown by push, so the alert check on the
 /// phone does not notify them a second time.
 const pushedBroadcastsKey = 'pushed_broadcasts';
@@ -27,9 +29,8 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   } catch (_) {}
 }
 
-/// Firebase Cloud Messaging. Off (and harmless) until the Firebase config
-/// files are in the app: android/app/google-services.json and
-/// ios/Runner/GoogleService-Info.plist.
+/// Firebase Cloud Messaging (project nasa-4225d, lib/firebase_options.dart).
+/// Off, and harmless, where Firebase cannot start (tests, web, desktop).
 class PushService {
   bool _available = false;
   bool get available => _available;
@@ -37,8 +38,10 @@ class PushService {
   /// Starts Firebase. Returns false when it is not set up on this build.
   Future<bool> init() async {
     if (kIsWeb || _available) return _available;
+    final options = DefaultFirebaseOptions.currentPlatform;
+    if (options == null) return false;
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(options: options);
       FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
       _available = true;
     } catch (e) {
