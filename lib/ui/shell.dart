@@ -75,7 +75,7 @@ class _AppShellState extends State<AppShell> {
           HomeScreen(onOpenMap: () => setState(() => _tab = 2)),
           const CalendarScreen(),
           const MapScreen(),
-          AlertsScreen(onOpen: () => setState(() => _tab = 0)),
+          AlertsScreen(onTab: (t) => setState(() => _tab = t.index)),
           const SettingsScreen(),
         ],
       ),

@@ -6,6 +6,7 @@ import '../../data/models/zone.dart';
 import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/base_map.dart';
 import 'paywall.dart';
 
 /// Opens the zone editor for a new zone, or the paywall when the free zone is
@@ -95,20 +96,7 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
                 },
               ),
               children: [
-                TileLayer(
-                  urlTemplate: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
-                      'VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/'
-                      '${_gibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
-                  maxNativeZoom: 9,
-                  userAgentPackageName: 'online.codingnow.firesight',
-                ),
-                // Place names, so people can find their village.
-                TileLayer(
-                  urlTemplate: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
-                      'Reference_Labels_15m/default/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png',
-                  maxNativeZoom: 13,
-                  userAgentPackageName: 'online.codingnow.firesight',
-                ),
+                ...darkBaseMap(),
                 CircleLayer(circles: [
                   CircleMarker(
                     point: _center,
@@ -129,6 +117,18 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
                   child: Icon(Icons.location_on, size: 40, color: Ember.ember,
                       shadows: [Shadow(blurRadius: 6)]),
                 ),
+              ),
+            ),
+            PositionedDirectional(
+              start: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Ember.surface.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(baseMapCredit, style: monoStyle(size: 10)),
               ),
             ),
             if (!_editing)
@@ -211,10 +211,4 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
       ]),
     );
   }
-}
-
-/// GIBS daily imagery: yesterday, so the tile set is complete.
-String _gibsDate() {
-  final d = DateTime.now().toUtc().subtract(const Duration(days: 1));
-  return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

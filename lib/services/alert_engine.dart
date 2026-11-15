@@ -32,6 +32,7 @@ class FireAlert {
     this.date,
     this.zone,
     this.broadcast,
+    this.position,
   });
 
   final AlertType type;
@@ -58,6 +59,10 @@ class FireAlert {
 
   /// A zone alert sent by the Firesight team (admin page).
   final Broadcast? broadcast;
+
+  /// Where the fire is (nearest hotspot, zone hotspot or smoke estimate), so
+  /// the alert can open escape routes around it. Not part of [id].
+  final LatLng? position;
 
   /// Stable id, used so the same alert is not notified twice.
   String get id => '${type.name}_${region.id}${zone == null ? '' : '_z${zone!.id}'}${broadcast == null ? '' : '_b${broadcast!.id}'}_${summary?.year ?? ''}'
@@ -142,6 +147,7 @@ class AlertEngine {
         region: region,
         distanceKm: near.distanceKm,
         compass: near.compass,
+        position: near.hotspot.position,
       ));
     } else if (confident.isNotEmpty) {
       alerts.add(FireAlert(
@@ -229,6 +235,7 @@ class AlertEngine {
       count: inside.length,
       distanceKm: near.distanceKm,
       compass: near.compass,
+      position: near.hotspot.position,
     );
   }
 

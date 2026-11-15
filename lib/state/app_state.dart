@@ -117,8 +117,34 @@ class AppState extends ChangeNotifier {
   String? locationError; // l10n key
 
   // Alerts.
-  List<FireAlert> alerts = const [];
+  /// Everything the last check found, cleared ones included.
+  List<FireAlert> allAlerts = const [];
+
+  /// Alerts the user has not cleared. A cleared alert comes back when it
+  /// changes (its [FireAlert.id] changes, e.g. more fires or a new day).
+  List<FireAlert> get alerts =>
+      _dismissed.isEmpty ? allAlerts : allAlerts.where((a) => !_dismissed.contains(a.id)).toList();
+
+  /// How many current alerts are hidden because they were cleared.
+  int get clearedCount => allAlerts.length - alerts.length;
   bool checkingAlerts = false;
+  Set<String> _dismissed = {};
+
+  /// Hides alerts from the list (and the tab badge) until they change.
+  void dismissAlerts(Iterable<FireAlert> list) {
+    _dismissed = {..._dismissed, ...list.map((a) => a.id)};
+    _saveDismissed();
+    notifyListeners();
+  }
+
+  /// Brings cleared alerts back (all of them, or just [list]).
+  void restoreAlerts([Iterable<FireAlert>? list]) {
+    _dismissed = list == null ? {} : (_dismissed.difference(list.map((a) => a.id).toSet()));
+    _saveDismissed();
+    notifyListeners();
+  }
+
+  void _saveDismissed() => _prefs.setStringList(_kDismissed, _dismissed.toList());
 
   // Field reports.
   List<FieldReport> reports = const [];
@@ -147,6 +173,7 @@ class AppState extends ChangeNotifier {
       _kLang = 'language',
       _kDark = 'dark_mode',
       _kNotified = 'notified_alerts',
+      _kDismissed = 'dismissed_alerts',
       _kOnboarded = 'onboarded',
       _kBackground = 'background_checks',
       _kSoundPrefix = 'sound_',
@@ -352,6 +379,7 @@ class AppState extends ChangeNotifier {
     darkMode = _prefs.getBool(_kDark) ?? true;
     onboarded = _prefs.getBool(_kOnboarded) ?? false;
     reports = reportStore.load();
+    _dismissed = (_prefs.getStringList(_kDismissed) ?? const []).toSet();
     smokeEstimates = triangulate(reports);
     backgroundChecks = _prefs.getBool(_kBackground) ?? true;
     final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
@@ -666,7 +694,14 @@ class AppState extends ChangeNotifier {
     found.addAll(await _zoneAlerts(spotsOf));
     found.addAll(await _officialAlerts());
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
-    alerts = found;
+    allAlerts = found;
+    // Forget cleared alerts that are gone, so the list does not grow forever.
+    // Only once it is long: one failed fetch should not bring cleared ones back.
+    final current = found.map((a) => a.id).toSet();
+    if (_dismissed.length > 200) {
+      _dismissed = _dismissed.intersection(current);
+      _saveDismissed();
+    }
     checkingAlerts = false;
     notifyListeners();
     if (notify) await _notify(found, onlyNew: onlyNew);
@@ -722,6 +757,7 @@ class AppState extends ChangeNotifier {
           distanceKm: distanceKm(z.center, e.center),
           compass: compassIndex(z.center, e.center),
           estimateKey: '${e.center.latitude.toStringAsFixed(2)},${e.center.longitude.toStringAsFixed(2)}',
+          position: e.center,
         ));
       }
     }
@@ -778,6 +814,7 @@ class AppState extends ChangeNotifier {
         distanceKm: d,
         compass: me == null ? null : compassIndex(me, e.center),
         estimateKey: '${e.center.latitude.toStringAsFixed(2)},${e.center.longitude.toStringAsFixed(2)}',
+        position: e.center,
       ));
     }
     return out;

@@ -11,6 +11,7 @@ import '../../services/report_store.dart';
 import '../../services/triangulation.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/base_map.dart';
 import '../widgets/common.dart';
 import '../widgets/danger_forecast_card.dart';
 import '../widgets/report_sheet.dart';
@@ -19,7 +20,7 @@ import 'report_screen.dart';
 import 'safety_screen.dart';
 import 'zone_editor_screen.dart';
 
-/// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery, plus
+/// Recent hotspots (last 48 h) on a dark street map (Esri Dark Gray Canvas), plus
 /// the user's position and their field reports.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -37,12 +38,6 @@ class _MapScreenState extends State<MapScreen> {
   bool _showDanger = false;
   int _dangerDay = 1;
   Future<RegionDanger>? _danger;
-
-  /// GIBS daily imagery: use yesterday so the tile set is complete.
-  String get _gibsDate {
-    final d = DateTime.now().toUtc().subtract(const Duration(days: 1));
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
 
   LatLngBounds _bounds(Region r) =>
       LatLngBounds(LatLng(r.south, r.west), LatLng(r.north, r.east));
@@ -118,16 +113,7 @@ class _MapScreenState extends State<MapScreen> {
                         onLongPress: (_, point) => addZone(context, center: point),
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
-                              // SNPP has had no imagery since early Nov 2026 (404s);
-                              // NOAA-20 carries the same VIIRS instrument.
-                              'VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/'
-                              '$_gibsDate/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
-                          maxNativeZoom: 9,
-                          userAgentPackageName: 'online.codingnow.firesight',
-                        ),
+                        ...darkBaseMap(),
                         // Fire danger forecast, under everything else.
                         if (_showDanger) _DangerLayer(future: _danger, day: _dangerDay),
                         // Compass lines from smoke reports.
@@ -271,7 +257,7 @@ class _MapScreenState extends State<MapScreen> {
                           color: Ember.surface.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('NASA GIBS · FIRMS', style: monoStyle(size: 10)),
+                        child: Text('NASA FIRMS · $baseMapCredit', style: monoStyle(size: 10)),
                       ),
                     ),
                     if (snap.connectionState == ConnectionState.waiting ||
@@ -306,6 +292,21 @@ class _MapScreenState extends State<MapScreen> {
                               label: spots.isEmpty ? s.t('map_empty') : s.t('map_hint'),
                             ),
                           ],
+                          // No zone yet: say plainly how to get one.
+                          if (state.zones.isEmpty) ...[
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              key: const ValueKey('map_zone_cta'),
+                              onTap: () => _addZoneHere(context),
+                              child: _MapChip(
+                                icon: Icons.add_location_alt_outlined,
+                                iconColor: Ember.amber,
+                                label: s.t('map_zone_cta'),
+                                bold: true,
+                                borderColor: Ember.amber,
+                              ),
+                            ),
+                          ],
                           if (_showDanger) ...[
                             const SizedBox(height: 6),
                             _DangerPicker(
@@ -327,6 +328,15 @@ class _MapScreenState extends State<MapScreen> {
                           backgroundColor: Ember.surface,
                           onPressed: _goToMe,
                           child: Icon(Icons.my_location, color: Ember.text),
+                        ),
+                        const SizedBox(height: 4),
+                        FloatingActionButton.small(
+                          key: const ValueKey('map_add_zone'),
+                          heroTag: 'zone',
+                          tooltip: s.t('zone_add'),
+                          backgroundColor: Ember.amber,
+                          onPressed: () => _addZoneHere(context),
+                          child: const Icon(Icons.add_location_alt, color: Colors.black),
                         ),
                         const SizedBox(height: 4),
                         FloatingActionButton.small(
@@ -356,6 +366,9 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+
+  /// New zone centred on what the user is looking at.
+  void _addZoneHere(BuildContext context) => addZone(context, center: _map.camera.center);
 
   void _showLegend(BuildContext context) {
     final s = S.of(context);
@@ -411,6 +424,18 @@ class _MapScreenState extends State<MapScreen> {
                 s.t('legend_line'),
               ),
               row(
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Ember.amber.withValues(alpha: 0.15),
+                    border: Border.all(color: Ember.amber, width: 2),
+                  ),
+                ),
+                s.t('legend_zone'),
+              ),
+              row(
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   for (final l in [DangerLevel.low, DangerLevel.high, DangerLevel.extreme])
                     Container(
@@ -422,7 +447,7 @@ class _MapScreenState extends State<MapScreen> {
                 s.t('legend_danger'),
               ),
               const SizedBox(height: 8),
-              Text('NASA GIBS · FIRMS', style: monoStyle(size: 11)),
+              Text('NASA FIRMS · $baseMapCredit', style: monoStyle(size: 11)),
             ],
           ),
         ),
@@ -565,12 +590,14 @@ class _MapChip extends StatelessWidget {
     required this.label,
     this.iconColor,
     this.bold = false,
+    this.borderColor,
   });
 
   final IconData icon;
   final String label;
   final Color? iconColor;
   final bool bold;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -578,7 +605,7 @@ class _MapChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: Ember.surface.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Ember.outline),
+          border: Border.all(color: borderColor ?? Ember.outline),
           boxShadow: const [BoxShadow(blurRadius: 6, color: Colors.black26)],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [

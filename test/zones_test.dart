@@ -182,6 +182,32 @@ void main() {
     await s.checkAlerts();
     final zoneAlerts = s.alerts.where((a) => a.zone?.name == 'Farm').toList();
     expect(zoneAlerts.map((a) => a.type), contains(AlertType.zoneFire));
+    // The zone fire knows where the fire is, so it can open escape routes.
+    expect(zoneAlerts.firstWhere((a) => a.type == AlertType.zoneFire).position, isNotNull);
+  });
+
+  test('cleared alerts stay hidden across checks until restored', () async {
+    final s = await _state();
+    await s.addZone('Farm', _fireA, 3);
+    await s.checkAlerts();
+    final all = s.alerts.length;
+    expect(all, greaterThan(0));
+    final fire = s.alerts.firstWhere((a) => a.type == AlertType.zoneFire);
+
+    s.dismissAlerts([fire]);
+    expect(s.alerts.map((a) => a.id), isNot(contains(fire.id)));
+    expect(s.clearedCount, 1);
+    await s.checkAlerts();
+    expect(s.alerts.map((a) => a.id), isNot(contains(fire.id)));
+
+    s.dismissAlerts(s.alerts);
+    expect(s.alerts, isEmpty);
+    expect(s.clearedCount, all);
+    // Saved: a fresh start keeps them cleared.
+    expect((await SharedPreferences.getInstance()).getStringList('dismissed_alerts'), hasLength(all));
+
+    s.restoreAlerts();
+    expect(s.alerts.length, all);
   });
 
   test('the API asks for the zone record with a bbox', () async {
