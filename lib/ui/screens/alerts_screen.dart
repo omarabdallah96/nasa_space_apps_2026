@@ -11,68 +11,58 @@ import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/zones_section.dart';
 
-/// Early warning: active alerts, watched places, and an emergency card.
+/// Early warning: a status summary, active alerts, emergency contacts, zones
+/// and watched places. Alerts refresh on their own; pull down to force it.
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key, required this.onOpen});
 
   /// Called when a region is tapped (switches to the Today tab).
   final VoidCallback onOpen;
 
-  Future<void> _checkAndNotify(BuildContext context) async {
-    final state = AppScope.read(context);
-    final s = S.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final allowed = await state.notifications.requestPermission();
-    await state.checkAlerts(notify: allowed);
-    messenger.showSnackBar(SnackBar(
-      content: Text(s.t(!state.notifications.supported || allowed
-          ? 'notifications_sent'
-          : 'notifications_denied')),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final s = S.of(context);
-    final text = Theme.of(context).textTheme;
+    final watched = state.regions.where((r) => state.watchlist.contains(r.id)).length;
 
     return Scaffold(
-      appBar: AppBar(title: Text(s.t('alerts'))),
+      appBar: AppBar(
+        title: Text(s.t('alerts')),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: state.checkingAlerts
+              ? const LinearProgressIndicator(minHeight: 2, color: Ember.ember)
+              : const SizedBox(height: 2),
+        ),
+      ),
       body: RefreshIndicator(
         color: Ember.ember,
         onRefresh: () => state.checkAlerts(),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            // Safety first: always one tap away.
-            const _EmergencyCard(),
-            const SizedBox(height: 20),
-            Text(s.t('active_alerts'), style: text.titleLarge?.copyWith(fontSize: 18)),
-            const SizedBox(height: 4),
-            Text(s.t('alerts_intro'),
-                style: text.bodySmall?.copyWith(color: Ember.textMuted)),
-            const SizedBox(height: 10),
-            _StatusBanner(
-              checking: state.checkingAlerts,
-              count: state.alerts.length,
-              onCheck: state.checkingAlerts ? null : () => _checkAndNotify(context),
-            ),
-            const SizedBox(height: 10),
-            if (state.alerts.isNotEmpty)
+            _StatusHero(alerts: state.alerts, checking: state.checkingAlerts),
+            if (state.alerts.isNotEmpty) ...[
+              const SizedBox(height: 16),
               for (final a in state.alerts) ...[
                 _AlertTile(a, onTap: () {
                   state.select(a.region);
                   onOpen();
                 }),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
               ],
-            const SizedBox(height: 20),
+            ],
+            const SizedBox(height: 16),
+            const _EmergencyCard(),
+            const SizedBox(height: 28),
             const ZonesSection(),
-            const SizedBox(height: 24),
-            Text(s.t('watched_places'), style: text.titleLarge?.copyWith(fontSize: 18)),
-            const SizedBox(height: 4),
-            Text(s.t('watch_hint'), style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+            const SizedBox(height: 28),
+            _SectionHeader(
+              title: s.t('watched_places'),
+              subtitle: s.t('watch_hint'),
+              trailing: Text('$watched/${state.regions.length}', style: monoStyle(size: 12)),
+            ),
             const SizedBox(height: 10),
             for (final r in state.regions) ...[
               _WatchTile(
@@ -86,15 +76,8 @@ class AlertsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            const SizedBox(height: 12),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.explore_outlined, size: 18, color: Ember.amber),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(s.t('smoke_tip'),
-                    style: text.bodySmall?.copyWith(color: Ember.textMuted)),
-              ),
-            ]),
+            const SizedBox(height: 16),
+            const _SmokeTip(),
           ],
         ),
       ),
@@ -102,60 +85,150 @@ class AlertsScreen extends StatelessWidget {
   }
 }
 
-/// "All quiet" or "N alerts need your attention", with a check button.
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.checking, required this.count, this.onCheck});
+Color _levelColor(AlertLevel l) => switch (l) {
+      AlertLevel.info => Ember.amber,
+      AlertLevel.warning => Ember.ember,
+      AlertLevel.danger => Ember.extreme,
+    };
+
+String _levelLabel(S s, AlertLevel l) => s.t('level_${l.name}');
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.subtitle, this.trailing});
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(children: [
+          Expanded(child: Text(title, style: text.titleLarge?.copyWith(fontSize: 18))),
+          ?trailing,
+        ]),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+        ],
+      ],
+    );
+  }
+}
+
+/// The headline: "All quiet", or how many alerts and how serious they are.
+class _StatusHero extends StatelessWidget {
+  const _StatusHero({required this.alerts, required this.checking});
+  final List<FireAlert> alerts;
   final bool checking;
-  final int count;
-  final VoidCallback? onCheck;
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final quiet = count == 0;
-    final color = quiet ? Ember.calm : Ember.ember;
+    final text = Theme.of(context).textTheme;
+    final quiet = alerts.isEmpty;
+    // Alerts are sorted most severe first.
+    final color = quiet ? Ember.calm : _levelColor(alerts.first.level);
+    final counts = {
+      for (final l in AlertLevel.values.reversed)
+        l: alerts.where((a) => a.level == l).length,
+    }..removeWhere((_, n) => n == 0);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.05)],
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            if (checking)
-              const SizedBox.square(
-                dimension: 24,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: Ember.ember),
-              )
-            else
-              Icon(quiet ? Icons.check_circle_outline : Icons.warning_amber_rounded,
-                  color: color, size: 26),
-            const SizedBox(width: 12),
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.18),
+              ),
+              child: quiet
+                  ? Icon(Icons.verified_user_outlined, color: color, size: 28)
+                  : Text('${alerts.length}',
+                      style: monoStyle(size: 22, color: color)
+                          .copyWith(fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                checking && quiet
-                    ? s.t('loading')
-                    : quiet
-                        ? s.t('no_alerts')
-                        : '$count ${s.t('alerts_found')}',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    quiet ? s.t('all_quiet') : s.t('active_alerts'),
+                    style: text.titleLarge?.copyWith(fontSize: 22),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    quiet ? s.t('all_quiet_sub') : s.t('alerts_found'),
+                    style: text.bodySmall?.copyWith(color: Ember.textMuted),
+                  ),
+                ],
               ),
             ),
           ]),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onCheck,
-            icon: const Icon(Icons.refresh),
-            label: Text(s.t('check_notify')),
-          ),
+          if (counts.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final e in counts.entries)
+                _LevelCount(color: _levelColor(e.key), label: _levelLabel(s, e.key), count: e.value),
+            ]),
+          ],
+          const SizedBox(height: 14),
+          Row(children: [
+            Icon(checking ? Icons.sync : Icons.schedule, size: 14, color: Ember.textMuted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(checking ? s.t('loading') : s.t('alerts_auto'),
+                  style: monoStyle(size: 11)),
+            ),
+          ]),
         ],
       ),
+    );
+  }
+}
+
+class _LevelCount extends StatelessWidget {
+  const _LevelCount({required this.color, required this.label, required this.count});
+  final Color color;
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text('$count $label',
+            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+      ]),
     );
   }
 }
@@ -168,11 +241,8 @@ class _AlertTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final color = switch (alert.level) {
-      AlertLevel.info => Ember.amber,
-      AlertLevel.warning => Ember.ember,
-      AlertLevel.danger => Ember.extreme,
-    };
+    final text = Theme.of(context).textTheme;
+    final color = _levelColor(alert.level);
     final icon = switch (alert.type) {
       AlertType.anomaly => Icons.trending_up,
       AlertType.seasonSoon => Icons.event_outlined,
@@ -186,31 +256,65 @@ class _AlertTile extends StatelessWidget {
     };
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: alert.level == AlertLevel.danger
+              ? color.withValues(alpha: 0.6)
+              : Ember.outline,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: BorderDirectional(start: BorderSide(color: color, width: 4)),
-          ),
-          padding: const EdgeInsets.all(14),
+        child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 12),
+              Container(width: 4, color: color),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(s.alertTitle(alert),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text(s.alertBody(alert),
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 14, 8, 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(icon, color: color, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _levelLabel(s, alert.level).toUpperCase(),
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(s.alertTitle(alert),
+                                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(s.alertBody(alert),
+                                style: text.bodySmall?.copyWith(
+                                    color: Ember.textMuted, height: 1.35)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Ember.textMuted),
+                    ],
+                  ),
                 ),
               ),
-              Icon(Icons.chevron_right, color: Ember.textMuted),
             ],
           ),
         ),
@@ -240,20 +344,36 @@ class _WatchTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 8, 12),
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 6, 10),
           child: FutureBuilder<FireRecord>(
             future: repo.getRecord(region.id),
             builder: (context, snap) {
               final sum = snap.hasData ? summarize(snap.data!) : null;
+              final statusColor = sum == null ? Ember.textMuted : Ember.forStatus(sum.status);
               return Row(
                 children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(s.region(region),
-                            style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 4),
+                        Row(children: [
+                          Flexible(
+                            child: Text(s.region(region),
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium),
+                          ),
+                          if (sum != null) ...[
+                            const SizedBox(width: 8),
+                            StatusPill(label: s.status(sum.status), color: statusColor),
+                          ],
+                        ]),
+                        const SizedBox(height: 3),
                         Text(
                           sum == null
                               ? s.t('loading')
@@ -264,31 +384,17 @@ class _WatchTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (sum != null) ...[
-                        StatusPill(
-                            label: s.status(sum.status), color: Ember.forStatus(sum.status)),
-                        const SizedBox(height: 6),
-                      ],
-                      Tooltip(
-                        message: s.t(watched ? 'stop_watching' : 'watch'),
-                        child: FilterChip(
-                          avatar: Icon(
-                            watched ? Icons.notifications_active : Icons.add_alert_outlined,
-                            size: 18,
-                            color: watched ? Ember.ember : Ember.textMuted,
-                          ),
-                          label: Text(s.t(watched ? 'watching' : 'watch')),
-                          selected: watched,
-                          showCheckmark: false,
-                          visualDensity: VisualDensity.compact,
-                          onSelected: (_) => onToggle(),
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    tooltip: s.t(watched ? 'stop_watching' : 'watch'),
+                    onPressed: onToggle,
+                    style: IconButton.styleFrom(
+                      backgroundColor:
+                          watched ? Ember.ember.withValues(alpha: 0.18) : Colors.transparent,
+                    ),
+                    icon: Icon(
+                      watched ? Icons.notifications_active : Icons.notifications_none,
+                      color: watched ? Ember.ember : Ember.textMuted,
+                    ),
                   ),
                 ],
               );
@@ -300,6 +406,7 @@ class _WatchTile extends StatelessWidget {
   }
 }
 
+/// Compact emergency strip: call or text Civil Defence with your location.
 class _EmergencyCard extends StatelessWidget {
   const _EmergencyCard();
 
@@ -315,57 +422,86 @@ class _EmergencyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S.of(context);
     final state = AppScope.of(context);
-    final p = state.userPosition;
-    return Card(
-      color: Ember.extreme.withValues(alpha: 0.12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Icon(Icons.emergency_outlined, color: Ember.extreme),
-              const SizedBox(width: 8),
-              Text(s.t('emergency'),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18)),
-            ]),
-            const SizedBox(height: 4),
-            Text(s.t('emergency_sub'), style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: Ember.extreme),
-                  onPressed: () => _open(context, Uri(scheme: 'tel', path: '125')),
-                  icon: const Icon(Icons.call),
-                  label: Text(s.t('call_125')),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    if (p == null) await state.locateMe();
-                    final pos = state.userPosition;
-                    if (!context.mounted) return;
-                    final where = pos == null
-                        ? ''
-                        : ' https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
-                    await _open(
-                      context,
-                      Uri(scheme: 'sms', path: '125', queryParameters: {
-                        'body': '${s.t('sms_text')}$where',
-                      }),
-                    );
-                  },
-                  icon: const Icon(Icons.sms_outlined),
-                  label: Text(s.t('sms_location')),
-                ),
-              ),
-            ]),
-          ],
-        ),
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Ember.extreme.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Ember.extreme.withValues(alpha: 0.3)),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            const Icon(Icons.emergency_outlined, color: Ember.extreme, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(s.t('emergency'),
+                    style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                Text(s.t('emergency_sub'),
+                    style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Ember.extreme),
+                onPressed: () => _open(context, Uri(scheme: 'tel', path: '125')),
+                icon: const Icon(Icons.call),
+                label: Text(s.t('call_125')),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  if (state.userPosition == null) await state.locateMe();
+                  final pos = state.userPosition;
+                  if (!context.mounted) return;
+                  final where = pos == null
+                      ? ''
+                      : ' https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
+                  await _open(
+                    context,
+                    Uri(scheme: 'sms', path: '125', queryParameters: {
+                      'body': '${s.t('sms_text')}$where',
+                    }),
+                  );
+                },
+                icon: const Icon(Icons.sms_outlined),
+                label: Text(s.t('sms_location')),
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmokeTip extends StatelessWidget {
+  const _SmokeTip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Ember.amber.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.explore_outlined, size: 20, color: Ember.amber),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(S.of(context).t('smoke_tip'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Ember.textMuted)),
+        ),
+      ]),
     );
   }
 }

@@ -368,7 +368,7 @@ class _MapScreenState extends State<MapScreen> {
               row(
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   _HotspotDot.sized(16),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   _HotspotDot.sized(22),
                 ]),
                 s.t('legend_hotspot'),
