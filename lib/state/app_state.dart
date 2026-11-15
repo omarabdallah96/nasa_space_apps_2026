@@ -120,26 +120,19 @@ class AppState extends ChangeNotifier {
   /// Everything the last check found, cleared ones included.
   List<FireAlert> allAlerts = const [];
 
-  /// Alerts the user has not cleared. A cleared alert comes back when it
-  /// changes (its [FireAlert.id] changes, e.g. more fires or a new day).
+  /// Alerts the user has not cleared. A cleared alert is gone for good; only
+  /// a changed alert (new [FireAlert.id], e.g. more fires or a new day) shows.
   List<FireAlert> get alerts =>
       _dismissed.isEmpty ? allAlerts : allAlerts.where((a) => !_dismissed.contains(a.id)).toList();
 
-  /// How many current alerts are hidden because they were cleared.
-  int get clearedCount => allAlerts.length - alerts.length;
   bool checkingAlerts = false;
   Set<String> _dismissed = {};
 
-  /// Hides alerts from the list (and the tab badge) until they change.
+  /// Removes alerts from the list (and the tab badge). There is no undo.
   void dismissAlerts(Iterable<FireAlert> list) {
-    _dismissed = {..._dismissed, ...list.map((a) => a.id)};
-    _saveDismissed();
-    notifyListeners();
-  }
-
-  /// Brings cleared alerts back (all of them, or just [list]).
-  void restoreAlerts([Iterable<FireAlert>? list]) {
-    _dismissed = list == null ? {} : (_dismissed.difference(list.map((a) => a.id).toSet()));
+    final ids = list.map((a) => a.id).toSet();
+    _dismissed = {..._dismissed, ...ids};
+    allAlerts = allAlerts.where((a) => !ids.contains(a.id)).toList();
     _saveDismissed();
     notifyListeners();
   }
@@ -694,7 +687,7 @@ class AppState extends ChangeNotifier {
     found.addAll(await _zoneAlerts(spotsOf));
     found.addAll(await _officialAlerts());
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
-    allAlerts = found;
+    allAlerts = found.where((a) => !_dismissed.contains(a.id)).toList();
     // Forget cleared alerts that are gone, so the list does not grow forever.
     // Only once it is long: one failed fetch should not bring cleared ones back.
     final current = found.map((a) => a.id).toSet();

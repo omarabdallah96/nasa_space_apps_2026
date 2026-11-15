@@ -158,24 +158,14 @@ class AlertsScreen extends StatelessWidget {
   /// Switches the shell to another tab, for alerts that open one.
   final void Function(AlertTab tab) onTab;
 
-  void _clear(BuildContext context, List<FireAlert> list) {
-    final state = AppScope.read(context);
-    final s = S.of(context);
-    state.dismissAlerts(list);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(s.t(list.length == 1 ? 'alert_cleared' : 'alerts_cleared')),
-        action: SnackBarAction(label: s.t('undo'), onPressed: () => state.restoreAlerts(list)),
-      ));
-  }
+  void _clear(BuildContext context, List<FireAlert> list) =>
+      AppScope.read(context).dismissAlerts(list);
 
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final s = S.of(context);
     final alerts = state.alerts;
-    final cleared = state.clearedCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -187,13 +177,6 @@ class AlertsScreen extends StatelessWidget {
               tooltip: s.t('alerts_clear_all'),
               icon: const Icon(Icons.clear_all),
               onPressed: () => _clear(context, alerts),
-            ),
-          if (cleared > 0)
-            IconButton(
-              key: const ValueKey('restore_alerts'),
-              tooltip: s.t('alerts_restore'),
-              icon: const Icon(Icons.restore),
-              onPressed: state.restoreAlerts,
             ),
         ],
         bottom: PreferredSize(
@@ -211,18 +194,8 @@ class AlertsScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             _StatusHero(alerts: alerts, checking: state.checkingAlerts),
-            if (cleared > 0)
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: state.restoreAlerts,
-                  icon: const Icon(Icons.restore, size: 16),
-                  label: Text('$cleared ${s.t('alerts_cleared_n')}'),
-                  style: TextButton.styleFrom(foregroundColor: Ember.textMuted),
-                ),
-              ),
             if (alerts.isNotEmpty) ...[
-              SizedBox(height: cleared > 0 ? 4 : 12),
+              const SizedBox(height: 12),
               for (final a in alerts) ...[
                 Dismissible(
                   key: ValueKey(a.id),
