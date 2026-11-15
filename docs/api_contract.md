@@ -168,6 +168,43 @@ sign-up and deletion are limited to 20 attempts per client per 15 minutes
 }
 ```
 
+## 6. Water and escape routes
+
+`GET /resources?lat=&lon=&radiusKm=` (radius 0.5–25, default 10): water
+(hydrants, tanks, pumping points, rivers, lakes, reservoirs), fire stations,
+hospitals and clinics, and assembly points, nearest first, from OpenStreetMap.
+The server caches each area for a day in memory and a week on disk, and falls
+back to its disk copy when Overpass is down.
+
+```json
+{ "center": {"lat": 33.62, "lon": 35.7}, "radiusKm": 10, "count": 19,
+  "resources": [ { "id": "way/123", "kind": "water", "detail": "river", "name": "Litani River",
+                   "nameAr": "نهر الليطاني", "lat": 33.61, "lon": 35.69, "distanceKm": 1.09, "bearingDeg": 220 } ] }
+```
+
+`kind` is `water | fire_station | hospital | assembly_point`.
+
+`GET /escape?lat=&lon=&fires=lat,lon;lat,lon` (at most 200 fires): danger
+areas around the fires, stretched downwind with the current wind
+(Open-Meteo), and up to three driving routes (OSRM, or OpenRouteService with
+`avoid_polygons` when `ORS_API_KEY` is set) to towns or services away from
+the fire, best first. Unsafe routes are dropped when a safe one exists.
+Without `fires` it gives ways out in different directions (used to save
+each zone's exits on the phone ahead of time). Limited to 40 requests per
+client per 10 minutes.
+
+```json
+{ "from": {"lat": 33.62, "lon": 35.7}, "wind": {"speedKmh": 8.5, "fromDeg": 282},
+  "danger": [[[33.65, 35.73], "…"]], "startInDanger": false, "fires": 1,
+  "routes": [ { "destination": {"name": "Bab Maraa", "nameAr": "باب مارع", "kind": "town", "detail": "village", "lat": 33.58, "lon": 35.68},
+                "distanceKm": 5.36, "durationMin": 7, "headingDeg": 204, "exposureKm": 0, "safe": true,
+                "provider": "osrm", "geometry": [[33.62, 35.7], "…"] } ],
+  "source": "…", "note": "A planning aid only. Follow evacuation orders…" }
+```
+
+`destination.kind` is `direction` when no town lies away from the fire; the
+route then heads about 8 km straight away from it.
+
 ## Regenerating mocks
 
 ```

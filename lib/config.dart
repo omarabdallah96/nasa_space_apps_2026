@@ -5,6 +5,7 @@ import 'services/auth_api.dart';
 import 'services/broadcast_api.dart';
 import 'services/device_api.dart';
 import 'services/report_api.dart';
+import 'services/safety_api.dart';
 
 /// Live data from the Firesight backend. Build with
 /// `--dart-define=USE_MOCK=true` to use the bundled demo data instead, or
@@ -30,3 +31,6 @@ BroadcastApi? createBroadcastApi() => useMockData ? null : BroadcastApi(baseUrl:
 
 /// Instant alerts: phone registration for push; demo mode has none.
 DeviceApi? createDeviceApi() => useMockData ? null : DeviceApi(baseUrl: apiBaseUrl);
+
+/// Nearby water, fire stations and escape routes; demo mode has none.
+SafetyApi? createSafetyApi() => useMockData ? null : SafetyApi(baseUrl: apiBaseUrl);

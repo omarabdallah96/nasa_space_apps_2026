@@ -25,6 +25,7 @@ import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/report_api.dart';
 import '../services/report_store.dart';
+import '../services/safety_api.dart';
 import '../services/triangulation.dart';
 import '../services/weather_service.dart';
 
@@ -42,6 +43,7 @@ class AppState extends ChangeNotifier {
     this.broadcastApi,
     this.deviceApi,
     this.push,
+    this.safetyApi,
     FlutterSecureStorage? secureStorage,
   })  : _prefs = prefs,
         _secure = secureStorage ?? const FlutterSecureStorage(),
@@ -67,6 +69,9 @@ class AppState extends ChangeNotifier {
   /// with the server, which pushes zone alerts through Firebase. Null in demo mode.
   final DeviceApi? deviceApi;
   final PushService? push;
+
+  /// Nearby water and escape routes; null in demo mode.
+  final SafetyApi? safetyApi;
 
   /// The person's choice for instant alerts; null until they are asked.
   bool? instantAlerts;
@@ -220,6 +225,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await _prefs.setString(_kZones, jsonEncode([for (final z in zones) z.toJson()]));
     unawaited(syncDevice());
+    // Exits and water for each zone, saved now in case the network is down later.
+    unawaited(safetyApi?.prefetchZones(zones));
     if (user != null && _token != null) {
       await _prefs.setBool(_kZonesDirty, true);
       unawaited(_uploadZones());
@@ -269,6 +276,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       await _prefs.setString(_kZones, encode(zones));
       unawaited(syncDevice());
+      unawaited(safetyApi?.prefetchZones(zones));
       if (!loading) checkAlerts();
     }
     if (!remote.saved || encode(next) != encode(remote.zones)) await _uploadZones();
@@ -346,6 +354,7 @@ class AppState extends ChangeNotifier {
     final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
     if (lat != null && lon != null) lastKnownPosition = LatLng(lat, lon);
     zones = _loadZones(); // Before the account: its refresh syncs zones.
+    unawaited(safetyApi?.prefetchZones(zones));
     await _restoreAccount();
     proTest = _prefs.getBool(_kProTest) ?? false;
     instantAlerts = _prefs.getBool(_kInstant);

@@ -15,6 +15,7 @@ import '../widgets/common.dart';
 import '../widgets/danger_forecast_card.dart';
 import '../widgets/zones_section.dart';
 import 'report_screen.dart';
+import 'safety_screen.dart';
 import 'zone_editor_screen.dart';
 
 /// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery, plus
@@ -220,7 +221,7 @@ class _MapScreenState extends State<MapScreen> {
                                 width: 22,
                                 height: 22,
                                 child: GestureDetector(
-                                  onTap: () => _showHotspot(context, h),
+                                  onTap: () => _showHotspot(context, h, spots),
                                   child: _HotspotDot(h.frp),
                                 ),
                               ),
@@ -445,13 +446,29 @@ class _MapScreenState extends State<MapScreen> {
               label: confirmed ? s.t('satellite_confirms') : s.t('not_seen_satellite'),
               color: confirmed ? Ember.amber : Ember.extreme,
             ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheet);
+                  openSafety(context, target: e.center, fires: [
+                    e.center,
+                    for (final h in spots)
+                      if (distanceKm(h.position, e.center) <= 30) h.position,
+                  ]);
+                },
+                icon: const Icon(Icons.alt_route),
+                label: Text(s.t('safety_title')),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  void _showHotspot(BuildContext context, Hotspot h) {
+  void _showHotspot(BuildContext context, Hotspot h, List<Hotspot> spots) {
     final s = S.of(context);
     showModalBottomSheet<void>(
       context: context,
@@ -487,6 +504,22 @@ class _MapScreenState extends State<MapScreen> {
                 },
                 icon: const Icon(Icons.photo_camera_outlined),
                 label: Text(s.t('verify_field')),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheet);
+                  // Every detection around this one is part of the same danger.
+                  openSafety(context, target: h.position, fires: [
+                    for (final o in spots)
+                      if (distanceKm(o.position, h.position) <= 30) o.position,
+                  ]);
+                },
+                icon: const Icon(Icons.alt_route, color: Ember.ember),
+                label: Text(s.t('safety_title'), style: TextStyle(color: Ember.text)),
               ),
             ),
           ],

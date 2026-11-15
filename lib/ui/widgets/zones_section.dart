@@ -5,6 +5,7 @@ import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../screens/paywall.dart';
+import '../screens/safety_screen.dart';
 import '../screens/zone_editor_screen.dart';
 import '../screens/zone_report_screen.dart';
 
@@ -111,6 +112,15 @@ Future<void> showZoneActions(BuildContext context, AlertZone zone) => showModalB
                 openZoneReport(context, zone);
               },
             ),
+            if (state.safetyApi != null)
+              ListTile(
+                leading: const Icon(Icons.alt_route, color: Ember.ember),
+                title: Text(s.t('safety_zone')),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  openSafety(context, target: zone.center, zone: zone);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: Text(s.t('zone_edit')),

@@ -20,6 +20,7 @@ Future<void> main() async {
       authApi: createAuthApi(),
       broadcastApi: createBroadcastApi(),
       deviceApi: createDeviceApi(),
+      safetyApi: createSafetyApi(),
       push: PushService());
   try {
     await state.notifications.init();
