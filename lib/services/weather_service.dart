@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
+import '../data/models/danger_forecast.dart';
 import '../data/models/fire_record.dart';
 import '../domain/anomaly.dart';
 
@@ -112,14 +114,18 @@ class BurnAdvice {
 }
 
 /// Is today a reasonable day for an agricultural burn?
-/// Combines current weather with the harmonized fire record.
+/// Combines current weather with the harmonized fire record, and with the
+/// fire danger forecast for that day when there is one.
 BurnAdvice burnAdvice({
   required FireWeather weather,
   required FireRecord record,
   required DateTime now,
+  DangerLevel? danger,
 }) {
   final unsafe = <String>[];
   final caution = <String>[];
+
+  if (danger != null && danger.isHighOrAbove) unsafe.add('why_danger_high');
 
   if (weather.windKmh >= 25 || weather.gustKmh >= 40) {
     unsafe.add('why_wind_high');
@@ -173,12 +179,18 @@ class BurnPlan {
   final DayPlan? best;
 }
 
-/// Ranks the coming days for an agricultural burn.
-BurnPlan planBurns(List<DayForecast> forecast, FireRecord record) {
+/// Ranks the coming days for an agricultural burn. [danger] is the fire
+/// danger forecast by day, when known.
+BurnPlan planBurns(List<DayForecast> forecast, FireRecord record, {List<DangerDay>? danger}) {
+  DangerLevel? dangerOn(DateTime date) => danger
+      ?.where((x) => DateUtils.isSameDay(x.date, date))
+      .firstOrNull
+      ?.level;
   final days = [
     for (final d in forecast)
       () {
-        final advice = burnAdvice(weather: d.weather, record: record, now: d.date);
+        final advice = burnAdvice(
+            weather: d.weather, record: record, now: d.date, danger: dangerOn(d.date));
         final w = d.weather;
         final score = advice.level == BurnLevel.unsafe
             ? double.infinity

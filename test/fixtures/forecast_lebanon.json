@@ -1,0 +1,145 @@
+{
+ "country": {
+  "slug": "lebanon",
+  "name": "Lebanon"
+ },
+ "generatedAt": "2026-11-15T09:40:45.720Z",
+ "source": "Weather: Open-Meteo (free forecast models, ERA5 archive for the run-up). Index: Canadian Fire Weather Index (Van Wagner 1987). Classes: EFFIS.",
+ "note": "Fire danger says how easily fires start and spread with this weather, not where one will start: most fires here are lit by people. Forecasts beyond about 7 days are uncertain.",
+ "classes": [
+  {
+   "level": "very_low",
+   "from": 0
+  },
+  {
+   "level": "low",
+   "from": 5.2
+  },
+  {
+   "level": "moderate",
+   "from": 11.2
+  },
+  {
+   "level": "high",
+   "from": 21.3
+  },
+  {
+   "level": "very_high",
+   "from": 38
+  },
+  {
+   "level": "extreme",
+   "from": 50
+  }
+ ],
+ "grid": {
+  "stepDegrees": 0.15,
+  "points": 3
+ },
+ "days": [
+  {
+   "date": "2026-11-15",
+   "level": "high",
+   "fwi": {
+    "median": 11.8,
+    "p90": 30.9,
+    "max": 34.7
+   },
+   "areaShare": {
+    "highOrAbove": 0.209,
+    "veryHighOrAbove": 0,
+    "extreme": 0
+   },
+   "usual": {
+    "cellDaysPerDay": 0.4,
+    "highCellDaysPerDay": 2.2,
+    "shareOfPeak": 0.167,
+    "inPeakSeason": false
+   }
+  },
+  {
+   "date": "2026-11-16",
+   "level": "high",
+   "fwi": {
+    "median": 13.9,
+    "p90": 35.9,
+    "max": 46.1
+   },
+   "areaShare": {
+    "highOrAbove": 0.256,
+    "veryHighOrAbove": 0.07,
+    "extreme": 0
+   },
+   "usual": {
+    "cellDaysPerDay": 0.4,
+    "highCellDaysPerDay": 2.2,
+    "shareOfPeak": 0.167,
+    "inPeakSeason": false
+   }
+  },
+  {
+   "date": "2026-11-17",
+   "level": "high",
+   "fwi": {
+    "median": 11.1,
+    "p90": 25.1,
+    "max": 32.7
+   },
+   "areaShare": {
+    "highOrAbove": 0.186,
+    "veryHighOrAbove": 0,
+    "extreme": 0
+   },
+   "usual": {
+    "cellDaysPerDay": 0.2,
+    "highCellDaysPerDay": 1.2,
+    "shareOfPeak": 0.083,
+    "inPeakSeason": false
+   }
+  }
+ ],
+ "points": [
+  {
+   "lat": 33.185,
+   "lon": 35.225,
+   "fwi": [
+    14.5,
+    14.5,
+    14.3
+   ],
+   "level": [
+    "moderate",
+    "moderate",
+    "moderate"
+   ]
+  },
+  {
+   "lat": 33.185,
+   "lon": 35.375,
+   "fwi": [
+    19,
+    15.4,
+    11.8
+   ],
+   "level": [
+    "moderate",
+    "moderate",
+    "moderate"
+   ]
+  },
+  {
+   "lat": 33.335,
+   "lon": 35.225,
+   "fwi": [
+    11.8,
+    11.4,
+    11.4
+   ],
+   "level": [
+    "moderate",
+    "moderate",
+    "moderate"
+   ]
+  }
+ ]
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../data/models/danger_forecast.dart';
 import '../data/models/region.dart';
 import '../domain/anomaly.dart';
 import '../services/alert_engine.dart';
@@ -28,6 +29,14 @@ class S {
   String status(FireStatus st) => t('status_${st.name}');
   String label(ReportLabel l) => t('label_${l.name}');
   String burn(BurnLevel l) => t('burn_${l.name}');
+  String danger(DangerLevel l) => t('danger_${switch (l) {
+        DangerLevel.veryLow => 'very_low',
+        DangerLevel.low => 'low',
+        DangerLevel.moderate => 'moderate',
+        DangerLevel.high => 'high',
+        DangerLevel.veryHigh => 'very_high',
+        DangerLevel.extreme => 'extreme',
+      }}');
 
   String ratio(double r) => '${r.toStringAsFixed(1)}×';
 
@@ -72,6 +81,9 @@ class S {
       AlertType.nearbyHotspot => ar ? 'رصد حريق بالقرب منك' : 'Fire detected near you',
       AlertType.detections => ar ? '$place: رصد بالأقمار الصناعية' : '$place: new satellite detections',
       AlertType.groundSmoke => ar ? '$place: حريق حدّده بلاغات ميدانية' : '$place: fire located from ground reports',
+      AlertType.dangerForecast => ar
+          ? '$place: توقّع خطر حرائق ${danger(a.danger!)}'
+          : '$place: ${danger(a.danger!).toLowerCase()} fire danger forecast',
     };
   }
 
@@ -106,6 +118,16 @@ class S {
         return ar
             ? '${a.count} بلاغات دخان تتقاطع عند حريق محتمل$where.'
             : '${a.count} smoke reports cross at a likely fire$where.';
+      case AlertType.dangerForecast:
+        final when = a.days == 0
+            ? t('today')
+            : a.days == 1
+                ? t('tomorrow')
+                : weekday(a.date!.weekday);
+        final where = a.distanceKm != null ? (ar ? ' بالقرب منك' : ' near you') : '';
+        return ar
+            ? '$when: خطر حرائق ${danger(a.danger!)}$where. ${t('danger_advice_high')}'
+            : '$when: ${danger(a.danger!).toLowerCase()} fire danger$where. ${t('danger_advice_high')}';
       case AlertType.detections:
         return ar
             ? '${a.count} بؤرة حرارية مؤكدة في آخر 48 ساعة.'
@@ -343,7 +365,7 @@ class S {
     'info_answer': 'We compare the number of fires seen by NASA satellites this month with the same month in every year since 2000.\n\n• "Usual" is the typical (median) number for this month.\n• "Rank" puts this year among all years: #1 means the most fires ever recorded for this month.\n• The colour tells you at a glance: green = fewer than usual, yellow = normal, orange = above normal, red = extreme.',
     'info_season': 'Each month of this year (orange line) compared with past years.\n\n• The shaded band is the normal range: most past years fall inside it.\n• The dashed line is the typical value.\n• When the orange line rises above the band, there are more fires than usual.\n\nThe "critical period" is when most fires happen each year.',
     'info_weather': 'Live temperature, humidity and wind where you are (or the centre of the area).\n\nStrong wind and dry air make fire spread fast, so a burn can get out of control. Follow the advice in the coloured box.',
-    'info_planner': 'The next 7 days ranked for agricultural burning.\n\n• Green = low risk, yellow = be careful, red = do not burn.\n• The star marks the safest day.\n• The number under each day is the wind speed in km/h.',
+    'info_planner': 'The next 7 days ranked for agricultural burning.\n\n• Green = low risk, yellow = be careful, red = do not burn.\n• The star marks the safest day.\n• The number under each day is the wind speed in km/h.\n• Days with high fire danger forecast are always red.',
     'info_rings': 'Every ring is one year: the inner ring is the oldest, the outer ring is the most recent. Going round each ring are the 12 months, January at the top. Brighter colour means more fires.\n\nA bright patch on the outer ring means this year is unusual.',
     'info_evidence': 'Two NASA satellites have watched fires: MODIS since 2000 and VIIRS since 2012. VIIRS sees more small fires, so raw numbers jump in 2012 even when nothing changed on the ground.\n\nWe correct for that. The bars show the error on years we kept hidden: a shorter orange bar means the corrected record is more accurate.',
     'history_intro': 'Every square is one month. Brighter squares had more fires. Tap any square to compare it with the usual.',
@@ -368,6 +390,37 @@ class S {
     'save_hint': 'Choose what you see to send the report.',
     'delete_confirm': 'Delete this report?',
     'open_today': 'Open',
+    // Fire danger forecast
+    'danger_title': 'Fire danger forecast',
+    'danger_sub': 'Next 7 days, from the weather',
+    'danger_very_low': 'Very low',
+    'danger_low': 'Low',
+    'danger_moderate': 'Moderate',
+    'danger_high': 'High',
+    'danger_very_high': 'Very high',
+    'danger_extreme': 'Extreme',
+    'danger_today_is': 'Today',
+    'danger_peak': 'Highest this week',
+    'danger_usual_peak': 'This is the usual fire season here.',
+    'danger_usual_mid': 'Some fires usually happen here at this time of year.',
+    'danger_usual_low': 'Fires are usually rare here at this time of year.',
+    'danger_advice_high': 'Do not burn anything outdoors. Report smoke right away.',
+    'danger_advice_moderate': 'Be careful with any fire outdoors.',
+    'danger_advice_low': 'Fires start and spread less easily.',
+    'danger_outside': 'The forecast covers Portugal, Greece, Lebanon and Cyprus.',
+    'danger_source': 'Fire Weather Index (EFFIS classes) · weather: Open-Meteo',
+    'danger_noon': 'Weather at noon',
+    'danger_rain': 'Rain',
+    'danger_ground': 'Ground',
+    'danger_ground_very_dry': 'Very dry',
+    'danger_ground_dry': 'Dry',
+    'danger_ground_moist': 'Moist',
+    'danger_index': 'Fire Weather Index',
+    'danger_layer': 'Fire danger',
+    'tomorrow': 'Tomorrow',
+    'legend_danger': 'Fire danger forecast for the chosen day (colour = level)',
+    'why_danger_high': 'High fire danger forecast',
+    'info_danger': 'How easily a fire would start and spread on each day, worked out from the weather forecast: heat, dry air, wind, and how many days since it last rained.\n\n• It is the Fire Weather Index, the same one Europe\'s fire service (EFFIS) uses.\n• It does not say where a fire will start. Most fires are started by people, so on high-danger days be extra careful.\n• Tap a day to see its weather.\n• Forecasts more than a few days ahead can change.',
   };
 
   static const _ar = <String, String>{
@@ -582,7 +635,7 @@ class S {
     'info_answer': 'نقارن عدد الحرائق التي رصدتها أقمار ناسا هذا الشهر مع الشهر نفسه في كل سنة منذ 2000.\n\n• "المعتاد" هو العدد النموذجي (الوسيط) لهذا الشهر.\n• "الترتيب" يضع هذه السنة بين كل السنوات: رقم 1 يعني أكبر عدد حرائق سُجّل لهذا الشهر.\n• اللون يخبرك بسرعة: أخضر = أقل من المعتاد، أصفر = طبيعي، برتقالي = فوق الطبيعي، أحمر = استثنائي.',
     'info_season': 'كل شهر من هذه السنة (الخط البرتقالي) مقارنة بالسنوات الماضية.\n\n• الشريط المظلّل هو النطاق الطبيعي: معظم السنوات الماضية تقع داخله.\n• الخط المتقطّع هو القيمة النموذجية.\n• عندما يرتفع الخط البرتقالي فوق الشريط، تكون الحرائق أكثر من المعتاد.\n\n"الفترة الحرجة" هي الأشهر التي تحدث فيها معظم الحرائق كل عام.',
     'info_weather': 'الحرارة والرطوبة والرياح الآن حيث أنت (أو في وسط المنطقة).\n\nالرياح القوية والهواء الجاف ينشران النار بسرعة، فقد يخرج الحرق عن السيطرة. اتبع النصيحة في المربع الملوّن.',
-    'info_planner': 'الأيام السبعة القادمة مرتّبة حسب ملاءمتها للحرق الزراعي.\n\n• أخضر = خطر منخفض، أصفر = بحذر، أحمر = لا تحرق.\n• النجمة تشير إلى اليوم الأكثر أماناً.\n• الرقم تحت كل يوم هو سرعة الرياح بالكيلومتر في الساعة.',
+    'info_planner': 'الأيام السبعة القادمة مرتّبة حسب ملاءمتها للحرق الزراعي.\n\n• أخضر = خطر منخفض، أصفر = بحذر، أحمر = لا تحرق.\n• النجمة تشير إلى اليوم الأكثر أماناً.\n• الرقم تحت كل يوم هو سرعة الرياح بالكيلومتر في الساعة.\n• الأيام ذات خطر الحرائق المرتفع المتوقَّع حمراء دائماً.',
     'info_rings': 'كل حلقة هي سنة: الداخلية هي الأقدم والخارجية هي الأحدث. حول كل حلقة الأشهر الاثنا عشر، وكانون الثاني في الأعلى. اللون الأفتح يعني حرائق أكثر.\n\nبقعة فاتحة على الحلقة الخارجية تعني أن هذه السنة غير عادية.',
     'info_evidence': 'رصد قمران من ناسا الحرائق: MODIS منذ 2000 و VIIRS منذ 2012. يرى VIIRS حرائق صغيرة أكثر، لذا تقفز الأرقام الخام في 2012 حتى لو لم يتغيّر شيء على الأرض.\n\nنحن نصحّح ذلك. تُظهر الأشرطة الخطأ في سنوات أخفيناها للاختبار: الشريط البرتقالي الأقصر يعني أن السجل المصحّح أدق.',
     'history_intro': 'كل مربع هو شهر واحد. المربعات الأفتح فيها حرائق أكثر. اضغط على أي مربع لمقارنته بالمعتاد.',
@@ -607,6 +660,37 @@ class S {
     'save_hint': 'اختر ما تراه لإرسال البلاغ.',
     'delete_confirm': 'حذف هذا البلاغ؟',
     'open_today': 'افتح',
+    // Fire danger forecast
+    'danger_title': 'توقّعات خطر الحرائق',
+    'danger_sub': 'الأيام السبعة القادمة، حسب الطقس',
+    'danger_very_low': 'منخفض جداً',
+    'danger_low': 'منخفض',
+    'danger_moderate': 'متوسط',
+    'danger_high': 'مرتفع',
+    'danger_very_high': 'مرتفع جداً',
+    'danger_extreme': 'شديد',
+    'danger_today_is': 'اليوم',
+    'danger_peak': 'الأعلى هذا الأسبوع',
+    'danger_usual_peak': 'هذا هو موسم الحرائق المعتاد هنا.',
+    'danger_usual_mid': 'تحدث بعض الحرائق عادةً هنا في هذا الوقت من السنة.',
+    'danger_usual_low': 'الحرائق نادرة عادةً هنا في هذا الوقت من السنة.',
+    'danger_advice_high': 'لا تُشعل أي نار في الخارج. أبلغ عن أي دخان فوراً.',
+    'danger_advice_moderate': 'كن حذراً مع أي نار في الخارج.',
+    'danger_advice_low': 'تشتعل الحرائق وتنتشر بصعوبة أكبر.',
+    'danger_outside': 'تغطي التوقعات البرتغال واليونان ولبنان وقبرص.',
+    'danger_source': 'مؤشر طقس الحرائق (فئات EFFIS) · الطقس: Open-Meteo',
+    'danger_noon': 'الطقس عند الظهر',
+    'danger_rain': 'المطر',
+    'danger_ground': 'التربة',
+    'danger_ground_very_dry': 'جافة جداً',
+    'danger_ground_dry': 'جافة',
+    'danger_ground_moist': 'رطبة',
+    'danger_index': 'مؤشر طقس الحرائق',
+    'danger_layer': 'خطر الحرائق',
+    'tomorrow': 'غداً',
+    'legend_danger': 'توقّع خطر الحرائق لليوم المختار (اللون = المستوى)',
+    'why_danger_high': 'توقّع خطر حرائق مرتفع',
+    'info_danger': 'مدى سهولة اشتعال النار وانتشارها في كل يوم، محسوباً من توقعات الطقس: الحرارة، جفاف الهواء، الرياح، وعدد الأيام منذ آخر مطر.\n\n• إنه مؤشر طقس الحرائق، نفسه الذي تستخدمه خدمة الحرائق الأوروبية (EFFIS).\n• لا يحدد أين سيبدأ حريق. معظم الحرائق يُشعلها الناس، لذا كن أكثر حذراً في الأيام عالية الخطر.\n• اضغط على يوم لرؤية طقسه.\n• التوقعات لأكثر من بضعة أيام قد تتغيّر.',
   };
 
   /// For tests.

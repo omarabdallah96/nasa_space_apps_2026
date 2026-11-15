@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../models/danger_forecast.dart';
 import '../models/fire_record.dart';
 import '../models/hotspot.dart';
 import '../models/region.dart';
@@ -214,6 +216,37 @@ class ApiFireRepository implements FireRepository {
       return hotspotsFromApi(json);
     }
   }
+
+  /// Forecast answers are reused this long: the server recomputes every 3 hours.
+  static const _forecastFresh = Duration(minutes: 15);
+  final _forecasts = <String, (DateTime, Future<Map<String, dynamic>>)>{};
+
+  /// One request per path at a time, kept for a few minutes (the Today card,
+  /// the map and the alert check all ask for the same forecast).
+  Future<Map<String, dynamic>> _getFresh(String path) {
+    final hit = _forecasts[path];
+    if (hit != null && DateTime.now().difference(hit.$1) < _forecastFresh) return hit.$2;
+    final future = _get(path);
+    _forecasts[path] = (DateTime.now(), future);
+    future.catchError((Object _) {
+      _forecasts.remove(path);
+      return const <String, dynamic>{};
+    });
+    return future;
+  }
+
+  @override
+  Future<DangerForecast> getDangerForecast(LatLng point) async {
+    // Two decimals (~1 km) is far finer than the forecast grid, and keeps the
+    // offline cache to one file per place.
+    final lat = point.latitude.toStringAsFixed(2);
+    final lon = point.longitude.toStringAsFixed(2);
+    return DangerForecast.fromJson(await _getFresh('forecast?lat=$lat&lon=$lon&days=7'));
+  }
+
+  @override
+  Future<RegionDanger> getRegionDanger(String regionId) async =>
+      RegionDanger.fromJson(await _getFresh('countries/$regionId/forecast?days=7'));
 
   @visibleForTesting
   static List<Hotspot> hotspotsFromApi(Map<String, dynamic> json) {

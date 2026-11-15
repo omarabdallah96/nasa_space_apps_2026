@@ -1,12 +1,13 @@
 import 'package:latlong2/latlong.dart';
 
+import '../data/models/danger_forecast.dart';
 import '../data/models/fire_record.dart';
 import '../data/models/hotspot.dart';
 import '../data/models/region.dart';
 import '../domain/anomaly.dart';
 import 'location_service.dart';
 
-enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke }
+enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke, dangerForecast }
 
 enum AlertLevel { info, warning, danger }
 
@@ -25,6 +26,8 @@ class FireAlert {
     this.distanceKm,
     this.compass,
     this.estimateKey,
+    this.danger,
+    this.date,
   });
 
   final AlertType type;
@@ -41,14 +44,22 @@ class FireAlert {
   /// Rounded position of a ground-smoke estimate (for a stable id).
   final String? estimateKey;
 
+  /// Forecast fire danger, and the day it is forecast for.
+  final DangerLevel? danger;
+  final DateTime? date;
+
   /// Stable id, used so the same alert is not notified twice.
   String get id => '${type.name}_${region.id}_${summary?.year ?? ''}'
-      '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}_${estimateKey ?? ''}';
+      '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}_${estimateKey ?? ''}'
+      '${danger == null ? '' : '_${danger!.name}_${date!.year}-${date!.month}-${date!.day}'}';
 }
 
 /// Turns the harmonized record into early-warning alerts.
 class AlertEngine {
-  const AlertEngine({this.seasonWarningDays = 30, this.nearbyKm = 25});
+  const AlertEngine({this.seasonWarningDays = 30, this.nearbyKm = 25, this.dangerDays = 3});
+
+  /// Forecast danger alerts look this many days ahead, today included.
+  final int dangerDays;
 
   /// Warn this many days before the critical period starts.
   final int seasonWarningDays;
@@ -131,6 +142,34 @@ class AlertEngine {
     }
 
     return alerts;
+  }
+
+  /// Very high or extreme fire danger forecast in the next [dangerDays] days.
+  /// [days] is the forecast near the user (pass [nearUser]) or the region's
+  /// headline. One alert per place: the worst of those days.
+  FireAlert? dangerAlert({
+    required Region region,
+    required List<DangerDay> days,
+    required DateTime now,
+    bool nearUser = false,
+  }) {
+    final today = DateTime(now.year, now.month, now.day);
+    DangerDay? worst;
+    for (final d in days) {
+      final ahead = d.date.difference(today).inDays;
+      if (ahead < 0 || ahead >= dangerDays) continue;
+      if (worst == null || d.level.index > worst.level.index) worst = d;
+    }
+    if (worst == null || worst.level.index < DangerLevel.veryHigh.index) return null;
+    return FireAlert(
+      type: AlertType.dangerForecast,
+      level: worst.level == DangerLevel.extreme ? AlertLevel.danger : AlertLevel.warning,
+      region: region,
+      danger: worst.level,
+      date: worst.date,
+      days: worst.date.difference(today).inDays,
+      distanceKm: nearUser ? 0 : null,
+    );
   }
 
   /// First day of the next month that starts a critical period.

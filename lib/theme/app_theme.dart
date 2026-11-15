@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/models/danger_forecast.dart';
 import '../domain/anomaly.dart';
 
 /// Firesight palette: charcoal (dark) or warm paper (light) neutrals,
@@ -52,6 +53,16 @@ abstract final class Ember {
         FireStatus.normal => amber,
         FireStatus.above => ember,
         FireStatus.extreme => extreme,
+      };
+
+  /// Fire danger classes, green to deep red in EFFIS order.
+  static Color forDanger(DangerLevel l) => switch (l) {
+        DangerLevel.veryLow => calm,
+        DangerLevel.low => const Color(0xFFB8C46A),
+        DangerLevel.moderate => amber,
+        DangerLevel.high => ember,
+        DangerLevel.veryHigh => extreme,
+        DangerLevel.extreme => const Color(0xFFB0246E),
       };
 
   static String labelForStatus(FireStatus s) => switch (s) {

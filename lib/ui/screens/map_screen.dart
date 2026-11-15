@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../data/models/danger_forecast.dart';
 import '../../data/models/hotspot.dart';
 import '../../data/models/region.dart';
 import '../../l10n/strings.dart';
@@ -11,6 +12,7 @@ import '../../services/triangulation.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/danger_forecast_card.dart';
 import 'report_screen.dart';
 
 /// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery, plus
@@ -26,6 +28,11 @@ class _MapScreenState extends State<MapScreen> {
   final _map = MapController();
   String? _regionId;
   Future<List<Hotspot>>? _future;
+
+  /// Fire danger layer: off by default, the hotspots stay the main story.
+  bool _showDanger = false;
+  int _dangerDay = 1;
+  Future<RegionDanger>? _danger;
 
   /// GIBS daily imagery: use yesterday so the tile set is complete.
   String get _gibsDate {
@@ -52,11 +59,14 @@ class _MapScreenState extends State<MapScreen> {
       final first = _regionId == null;
       _regionId = region.id;
       _future = state.repository.getRecentHotspots(region.id);
+      _danger = null;
       if (!first) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _map.fitCamera(
             CameraFit.bounds(bounds: _bounds(region), padding: const EdgeInsets.all(24))));
       }
     }
+
+    if (_showDanger) _danger ??= state.repository.getRegionDanger(region.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -112,6 +122,8 @@ class _MapScreenState extends State<MapScreen> {
                           maxNativeZoom: 9,
                           userAgentPackageName: 'com.example.nasa_space_apps_2026',
                         ),
+                        // Fire danger forecast, under everything else.
+                        if (_showDanger) _DangerLayer(future: _danger, day: _dangerDay),
                         // Compass lines from smoke reports.
                         PolylineLayer(
                           polylines: [
@@ -235,6 +247,14 @@ class _MapScreenState extends State<MapScreen> {
                               label: spots.isEmpty ? s.t('map_empty') : s.t('map_hint'),
                             ),
                           ],
+                          if (_showDanger) ...[
+                            const SizedBox(height: 6),
+                            _DangerPicker(
+                              future: _danger,
+                              day: _dangerDay,
+                              onDay: (d) => setState(() => _dangerDay = d),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -248,6 +268,15 @@ class _MapScreenState extends State<MapScreen> {
                           backgroundColor: Ember.surface,
                           onPressed: _goToMe,
                           child: Icon(Icons.my_location, color: Ember.text),
+                        ),
+                        const SizedBox(height: 4),
+                        FloatingActionButton.small(
+                          heroTag: 'danger',
+                          tooltip: s.t('danger_layer'),
+                          backgroundColor: _showDanger ? Ember.ember : Ember.surface,
+                          onPressed: () => setState(() => _showDanger = !_showDanger),
+                          child: Icon(Icons.thermostat_auto,
+                              color: _showDanger ? Colors.white : Ember.text),
                         ),
                         const SizedBox(height: 4),
                         FloatingActionButton.small(
@@ -319,6 +348,17 @@ class _MapScreenState extends State<MapScreen> {
               row(
                 Container(width: 32, height: 3, color: Ember.amber),
                 s.t('legend_line'),
+              ),
+              row(
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  for (final l in [DangerLevel.low, DangerLevel.high, DangerLevel.extreme])
+                    Container(
+                      width: 10,
+                      height: 22,
+                      color: Ember.forDanger(l).withValues(alpha: 0.7),
+                    ),
+                ]),
+                s.t('legend_danger'),
               ),
               const SizedBox(height: 8),
               Text('NASA GIBS · FIRMS', style: monoStyle(size: 11)),
@@ -506,6 +546,95 @@ class _HotspotDot extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Forecast grid points as translucent coloured squares for the chosen day.
+class _DangerLayer extends StatelessWidget {
+  const _DangerLayer({required this.future, required this.day});
+  final Future<RegionDanger>? future;
+  final int day;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<RegionDanger>(
+        future: future,
+        builder: (context, snap) {
+          final f = snap.data;
+          if (f == null) return const SizedBox.shrink();
+          final half = f.stepDegrees / 2;
+          return PolygonLayer(
+            polygons: [
+              for (final p in f.points)
+                if (day < p.levels.length)
+                  Polygon(
+                    points: [
+                      LatLng(p.position.latitude - half, p.position.longitude - half),
+                      LatLng(p.position.latitude - half, p.position.longitude + half),
+                      LatLng(p.position.latitude + half, p.position.longitude + half),
+                      LatLng(p.position.latitude + half, p.position.longitude - half),
+                    ],
+                    color: Ember.forDanger(p.levels[day]).withValues(alpha: 0.38),
+                    borderStrokeWidth: 0,
+                  ),
+            ],
+          );
+        },
+      );
+}
+
+/// Today / tomorrow / the day after, with the region's headline level.
+class _DangerPicker extends StatelessWidget {
+  const _DangerPicker({required this.future, required this.day, required this.onDay});
+  final Future<RegionDanger>? future;
+  final int day;
+  final ValueChanged<int> onDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return FutureBuilder<RegionDanger>(
+      future: future,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _MapChip(icon: Icons.cloud_off, label: s.t('forecast_failed'));
+        }
+        final f = snap.data;
+        if (f == null) {
+          return _MapChip(icon: Icons.thermostat_auto, label: s.t('danger_layer'));
+        }
+        final d = f.days[day.clamp(0, f.days.length - 1)];
+        String name(int i) => i == 0
+            ? s.t('today')
+            : i == 1
+                ? s.t('tomorrow')
+                : s.weekday(f.days[i].date.weekday);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(spacing: 6, children: [
+              for (var i = 0; i < 3 && i < f.days.length; i++)
+                ChoiceChip(
+                  label: Text(name(i)),
+                  selected: i == day,
+                  showCheckmark: false,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => onDay(i),
+                ),
+            ]),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () => showDangerDay(context, d),
+              child: _MapChip(
+                icon: dangerIcon(d.level),
+                iconColor: Ember.forDanger(d.level),
+                label: '${s.t('danger_layer')}: ${s.danger(d.level)}',
+                bold: true,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

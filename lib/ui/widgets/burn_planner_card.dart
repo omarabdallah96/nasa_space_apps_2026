@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../data/models/danger_forecast.dart';
 import '../../data/models/fire_record.dart';
 import '../../l10n/strings.dart';
 import '../../services/weather_service.dart';
@@ -21,12 +22,18 @@ class BurnPlannerCard extends StatefulWidget {
 }
 
 class _BurnPlannerCardState extends State<BurnPlannerCard> {
-  Future<List<DayForecast>>? _future;
+  Future<(List<DayForecast>, List<DangerDay>?)>? _future;
   LatLng? _loadedFor;
 
   void _load() {
     _loadedFor = widget.point;
-    _future = AppScope.read(context).weather.forecast(widget.point);
+    final state = AppScope.read(context);
+    // The danger forecast is a bonus: without it the planner still works.
+    final danger = state.repository
+        .getDangerForecast(widget.point)
+        .then<List<DangerDay>?>((f) => f.days, onError: (Object _) => null);
+    _future = Future.wait([state.weather.forecast(widget.point), danger])
+        .then((r) => (r[0] as List<DayForecast>, r[1] as List<DangerDay>?));
   }
 
   static Color _color(BurnLevel l) => switch (l) {
@@ -45,7 +52,7 @@ class _BurnPlannerCardState extends State<BurnPlannerCard> {
       title: s.t('burn_planner'),
       subtitle: s.t('burn_planner_sub'),
       info: s.t('info_planner'),
-      child: FutureBuilder<List<DayForecast>>(
+      child: FutureBuilder<(List<DayForecast>, List<DangerDay>?)>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
@@ -56,7 +63,7 @@ class _BurnPlannerCardState extends State<BurnPlannerCard> {
           }
           if (!snap.hasData) return const LinearProgressIndicator(color: Ember.ember);
 
-          final plan = planBurns(snap.data!, widget.record);
+          final plan = planBurns(snap.data!.$1, widget.record, danger: snap.data!.$2);
           final best = plan.best;
           final today = DateUtils.dateOnly(DateTime.now());
 

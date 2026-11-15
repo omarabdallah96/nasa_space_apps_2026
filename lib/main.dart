@@ -12,7 +12,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final state = AppState(createRepository(), prefs: prefs, reportApi: createReportApi());
-  await state.notifications.init();
+  try {
+    await state.notifications.init();
+  } catch (_) {
+    // Never block app start on notifications: the app works without them.
+  }
   // Periodic alert checks while the app is closed (Android).
   try {
     await BackgroundChecks.init();

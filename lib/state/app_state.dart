@@ -247,12 +247,45 @@ class AppState extends ChangeNotifier {
         // One region failing should not hide the others.
       }
     }
+    found.addAll(await _dangerAlerts(ids));
     found.addAll(_smokeAlerts(ids));
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
     alerts = found;
     checkingAlerts = false;
     notifyListeners();
     if (notify) await _notify(found, onlyNew: onlyNew);
+  }
+
+  /// Very high or extreme fire danger forecast: near the user when their
+  /// position is known, otherwise over each watched place.
+  Future<List<FireAlert>> _dangerAlerts(Set<String> ids) async {
+    final out = <FireAlert>[];
+    final me = userPosition ?? lastKnownPosition;
+    String? mine;
+    if (me != null) {
+      final match = matchRegion(regions, me);
+      if (match != null && match.inside) {
+        try {
+          final f = await repository.getDangerForecast(me);
+          final a = alertEngine.dangerAlert(
+              region: match.region, days: f.days, now: DateTime.now(), nearUser: true);
+          mine = match.region.id;
+          if (a != null) out.add(a);
+        } catch (_) {
+          // No forecast here; the watched places below still count.
+        }
+      }
+    }
+    for (final r in regions.where((r) => ids.contains(r.id) && r.id != mine)) {
+      try {
+        final f = await repository.getRegionDanger(r.id);
+        final a = alertEngine.dangerAlert(region: r, days: f.days, now: DateTime.now());
+        if (a != null) out.add(a);
+      } catch (_) {
+        // One region failing should not hide the others.
+      }
+    }
+    return out;
   }
 
   /// Fires located from ground reports, near the user or in a watched place.

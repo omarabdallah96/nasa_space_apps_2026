@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../brand/ember_logo.dart';
 import '../widgets/burn_planner_card.dart';
 import '../widgets/common.dart';
+import '../widgets/danger_forecast_card.dart';
 import '../widgets/fire_rings.dart';
 import '../widgets/fire_weather_card.dart';
 import '../widgets/near_me_card.dart';
@@ -148,6 +149,9 @@ class _HomeBody extends StatelessWidget {
         // 3. Around me.
         const NearMeCard(),
         const SizedBox(height: 16),
+        // 4. What is coming.
+        DangerForecastCard(point: weatherPoint),
+        const SizedBox(height: 16),
         FireWeatherCard(record: record, point: weatherPoint),
         const SizedBox(height: 16),
         BurnPlannerCard(record: record, point: weatherPoint),
@@ -168,7 +172,7 @@ class _HomeBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        // 4. For the curious.
+        // 5. For the curious.
         Card(
           clipBehavior: Clip.antiAlias,
           child: Theme(
