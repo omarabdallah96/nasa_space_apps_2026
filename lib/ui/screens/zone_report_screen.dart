@@ -84,7 +84,7 @@ class _ZoneReportScreenState extends State<ZoneReportScreen> {
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(z.name),
-          Text('${s.t('zone_report')} · ${z.radiusKm.round()} km',
+          Text('${s.t('zone_report')} · ${z.radiusKm.round()} ${s.t('km')}',
               style: TextStyle(fontSize: 12, color: Ember.textMuted)),
         ]),
       ),
@@ -165,7 +165,7 @@ class _Report extends StatelessWidget {
         if (nearest != null) ...[
           const SizedBox(height: 8),
           Text(
-            '${s.t('zone_nearest')}: ${nearest.distanceKm.toStringAsFixed(1)} km ${s.compass(nearest.compass)}',
+            '${s.t('zone_nearest')}: ${nearest.distanceKm.toStringAsFixed(1)} ${s.t('km')} ${s.compass(nearest.compass)}',
             style: text.bodySmall?.copyWith(color: Ember.textMuted),
           ),
         ],

@@ -177,7 +177,7 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
                         min: AlertZone.minRadiusKm,
                         max: AlertZone.maxRadiusKm,
                         divisions: 49,
-                        label: '${_radius.round()} km',
+                        label: '${_radius.round()} ${s.t('km')}',
                         onChanged: (v) {
                           final before = _zoom;
                           setState(() => _radius = v);
@@ -187,7 +187,7 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
                     ),
                     SizedBox(
                       width: 52,
-                      child: Text('${_radius.round()} km',
+                      child: Text('${_radius.round()} ${s.t('km')}',
                           textAlign: TextAlign.end, style: monoStyle(size: 13)),
                     ),
                   ]),

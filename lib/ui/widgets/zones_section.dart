@@ -77,7 +77,7 @@ class ZoneTile extends StatelessWidget {
         subtitle: Text(
           paused
               ? s.t('zone_paused')
-              : '${zone.radiusKm.round()} km · ${alerts == 0 ? s.t('zone_quiet') : '$alerts ${s.t('alerts_found')}'}',
+              : '${zone.radiusKm.round()} ${s.t('km')} · ${alerts == 0 ? s.t('zone_quiet') : '$alerts ${s.t('alerts_found')}'}',
           style: TextStyle(color: paused ? Ember.amber : Ember.textMuted),
         ),
         trailing: TextButton.icon(
@@ -101,7 +101,7 @@ Future<void> showZoneActions(BuildContext context, AlertZone zone) => showModalB
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             ListTile(
               title: Text(zone.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('${zone.radiusKm.round()} km'),
+              subtitle: Text('${zone.radiusKm.round()} ${s.t('km')}'),
             ),
             ListTile(
               leading: Icon(state.isPro ? Icons.summarize_outlined : Icons.lock_outline),
