@@ -13,7 +13,9 @@ import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/danger_forecast_card.dart';
+import '../widgets/zones_section.dart';
 import 'report_screen.dart';
+import 'zone_editor_screen.dart';
 
 /// Recent hotspots (last 48 h) on NASA GIBS VIIRS true-colour imagery, plus
 /// the user's position and their field reports.
@@ -110,6 +112,8 @@ class _MapScreenState extends State<MapScreen> {
                           padding: const EdgeInsets.all(24),
                         ),
                         backgroundColor: Ember.background,
+                        // Long-press anywhere to put an alert zone there.
+                        onLongPress: (_, point) => addZone(context, center: point),
                       ),
                       children: [
                         TileLayer(
@@ -137,6 +141,21 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                           ],
                         ),
+                        // The user's alert zones (paused ones greyed).
+                        CircleLayer(
+                          circles: [
+                            for (final (i, z) in state.zones.indexed)
+                              CircleMarker(
+                                point: z.center,
+                                radius: z.radiusKm * 1000,
+                                useRadiusInMeter: true,
+                                color: (i < state.zoneLimit ? Ember.amber : Ember.textMuted)
+                                    .withValues(alpha: 0.10),
+                                borderColor: i < state.zoneLimit ? Ember.amber : Ember.textMuted,
+                                borderStrokeWidth: 2,
+                              ),
+                          ],
+                        ),
                         // Estimated fire: uncertainty circle.
                         CircleLayer(
                           circles: [
@@ -153,6 +172,29 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                         MarkerLayer(
                           markers: [
+                            for (final z in state.zones)
+                              Marker(
+                                point: z.center,
+                                width: 120,
+                                height: 30,
+                                child: GestureDetector(
+                                  onTap: () => showZoneActions(context, z),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Ember.surface.withValues(alpha: 0.9),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: Ember.amber),
+                                      ),
+                                      child: Text(z.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             for (final e in state.smokeEstimates)
                               Marker(
                                 point: e.center,

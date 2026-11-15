@@ -36,6 +36,8 @@ Future<void> runBackgroundCheck({
     prefs: prefs,
     notifications: notifications,
     reportApi: repository == null ? createReportApi() : null,
+    // Knows the signed-in user's plan, so Pro zones are checked too.
+    authApi: repository == null ? createAuthApi() : null,
   );
   await state.init(checkOnStart: false);
   await state.checkAlerts(notify: true, onlyNew: true);

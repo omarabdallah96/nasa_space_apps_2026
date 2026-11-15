@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../services/auth_api.dart';
 import '../brand/ember_logo.dart';
 import 'auth_screen.dart';
+import 'paywall.dart';
 import 'onboarding_screen.dart';
 
 /// Everything the user can change, in one place. Every row is a single tap:
@@ -215,6 +216,21 @@ class _SettingsScreenState extends State<SettingsScreen>
               ],
             ]),
           ],
+
+          // ── Pro ──
+          const SizedBox(height: 12),
+          _Group(children: [
+            ListTile(
+              key: const ValueKey('settings_pro'),
+              onTap: () => showPaywall(context),
+              contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+              leading: const _IconBox(Icons.workspace_premium, color: Ember.amber),
+              title: Text(s.t('pro_title'), style: _titleStyle),
+              subtitle: Text(s.t(state.isPro ? 'pro_active' : 'pro_settings_sub'),
+                  style: TextStyle(color: state.isPro ? Ember.calm : Ember.textMuted)),
+              trailing: Icon(Icons.chevron_right, color: Ember.textMuted),
+            ),
+          ]),
 
           // ── Alerts ──
           _Header(s.t('alerts')),

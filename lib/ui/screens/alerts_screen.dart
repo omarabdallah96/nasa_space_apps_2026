@@ -9,6 +9,7 @@ import '../../services/alert_engine.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/zones_section.dart';
 
 /// Early warning: active alerts, watched places, and an emergency card.
 class AlertsScreen extends StatelessWidget {
@@ -67,6 +68,8 @@ class AlertsScreen extends StatelessWidget {
                 const SizedBox(height: 8),
               ],
             const SizedBox(height: 20),
+            const ZonesSection(),
+            const SizedBox(height: 24),
             Text(s.t('watched_places'), style: text.titleLarge?.copyWith(fontSize: 18)),
             const SizedBox(height: 4),
             Text(s.t('watch_hint'), style: text.bodySmall?.copyWith(color: Ember.textMuted)),
