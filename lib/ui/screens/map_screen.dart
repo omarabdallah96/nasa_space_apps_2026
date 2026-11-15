@@ -218,8 +218,8 @@ class _MapScreenState extends State<MapScreen> {
                             for (final h in spots)
                               Marker(
                                 point: h.position,
-                                width: 22,
-                                height: 22,
+                                width: 38,
+                                height: 38,
                                 child: GestureDetector(
                                   onTap: () => _showHotspot(context, h, spots),
                                   child: _HotspotDot(h.frp),
@@ -367,9 +367,9 @@ class _MapScreenState extends State<MapScreen> {
               const SizedBox(height: 8),
               row(
                 Row(mainAxisSize: MainAxisSize.min, children: [
-                  _HotspotDot.sized(9),
-                  const SizedBox(width: 4),
                   _HotspotDot.sized(16),
+                  const SizedBox(width: 4),
+                  _HotspotDot.sized(22),
                 ]),
                 s.t('legend_hotspot'),
               ),
@@ -597,17 +597,21 @@ class _YouDot extends StatelessWidget {
 }
 
 class _HotspotDot extends StatelessWidget {
-  const _HotspotDot(this.frp);
+  const _HotspotDot(this.frp) : fixedSize = null;
 
-  /// A dot of a fixed size, for the legend.
-  const _HotspotDot.sized(double size) : frp = (size - 8) * 3;
+  /// A badge of a fixed size, for the legend.
+  const _HotspotDot.sized(double size)
+      : fixedSize = size,
+        frp = 30;
 
   final num frp;
+  final double? fixedSize;
 
   @override
   Widget build(BuildContext context) {
-    final t = (frp / 30).clamp(0.3, 1.0);
-    final size = 8 + 10 * t;
+    // Stronger fires (higher FRP) get a bigger, hotter badge.
+    final t = (frp / 30).clamp(0.3, 1.0).toDouble();
+    final size = fixedSize ?? 24 + 12 * t;
     return Center(
       child: Container(
         width: size,
@@ -615,11 +619,12 @@ class _HotspotDot extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Ember.heat(0.55 + 0.45 * t),
-          border: Border.all(color: Colors.black54, width: 1),
+          border: Border.all(color: Colors.white, width: size < 20 ? 1 : 2),
           boxShadow: [
             BoxShadow(color: Ember.ember.withValues(alpha: 0.7), blurRadius: 8),
           ],
         ),
+        child: Icon(Icons.local_fire_department, color: Colors.white, size: size * 0.62),
       ),
     );
   }

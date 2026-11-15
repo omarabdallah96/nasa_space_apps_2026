@@ -241,10 +241,17 @@ class _SafetyScreenState extends State<SafetyScreen> {
             for (final f in _fires.take(300))
               Marker(
                 point: f,
-                width: 18,
-                height: 18,
-                child: const Icon(Icons.local_fire_department, color: Ember.extreme, size: 18,
-                    shadows: [Shadow(blurRadius: 3, color: Colors.white)]),
+                width: 34,
+                height: 34,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Ember.extreme,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [BoxShadow(blurRadius: 6, color: Colors.black38)],
+                  ),
+                  child: const Icon(Icons.local_fire_department, color: Colors.white, size: 22),
+                ),
               ),
             for (final (i, r) in routes.indexed)
               Marker(
