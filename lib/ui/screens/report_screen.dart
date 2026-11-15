@@ -60,10 +60,11 @@ class _ReportScreenState extends State<ReportScreen> {
     if (mounted) setState(() => _locating = false);
   }
 
-  Future<void> _pick(ImageSource source) async {
+  /// Camera only: a live photo is the evidence, so gallery images are not accepted.
+  Future<void> _takePhoto() async {
     try {
       final file = await _picker.pickImage(
-          source: source, maxWidth: 1600, imageQuality: 80);
+          source: ImageSource.camera, maxWidth: 1600, imageQuality: 80);
       if (file != null) setState(() => _photoPath = file.path);
     } catch (e) {
       if (!mounted) return;
@@ -101,6 +102,7 @@ class _ReportScreenState extends State<ReportScreen> {
     final text = Theme.of(context).textTheme;
     final h = widget.hotspot;
     final canSave = _label != null &&
+        _photoPath != null &&
         !_saving &&
         (_position != null || h != null);
 
@@ -120,12 +122,12 @@ class _ReportScreenState extends State<ReportScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_label == null) ...[
+              if (_label == null || _photoPath == null) ...[
                 Row(children: [
                   Icon(Icons.info_outline, size: 16, color: Ember.textMuted),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(s.t('save_hint'),
+                    child: Text(s.t(_label == null ? 'save_hint' : 'photo_hint'),
                         style: text.bodySmall?.copyWith(color: Ember.textMuted)),
                   ),
                 ]),
@@ -165,9 +167,8 @@ class _ReportScreenState extends State<ReportScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          // Step 2: photo (optional).
-          StepHeader(
-              number: 2, title: s.t('step_photo'), optional: true, done: _photoPath != null),
+          // Step 2: photo (required, camera only).
+          StepHeader(number: 2, title: s.t('step_photo'), done: _photoPath != null),
           const SizedBox(height: 12),
           if (_photoPath != null) ...[
             AspectRatio(
@@ -181,25 +182,12 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 8),
           ],
-          Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                onPressed: () => _pick(ImageSource.camera),
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: Text(s.t('take_photo')),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                onPressed: () => _pick(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_outlined),
-                label: Text(s.t('from_gallery')),
-              ),
-            ),
-          ]),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            onPressed: _takePhoto,
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: Text(s.t(_photoPath == null ? 'take_photo' : 'retake_photo')),
+          ),
           // Step 3: direction, only when it helps (smoke / wildfire).
           AnimatedSize(
             duration: const Duration(milliseconds: 250),

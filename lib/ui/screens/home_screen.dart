@@ -36,17 +36,17 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Row(children: [
-          const EmberLogo(size: 30),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(s.t('app_name'), overflow: TextOverflow.ellipsis),
-          ),
-        ]),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Tooltip(message: s.t('app_name'), child: const EmberLogo(size: 30)),
+            const SizedBox(width: 24),
+            const Flexible(child: AppBarRegionPicker()),
+          ],
+        ),
       ),
       body: Column(
         children: [
-          const RegionChips(),
           const SizedBox(height: 8),
           Expanded(
             child: RecordLoader(
@@ -77,8 +77,9 @@ class _HomeBody extends StatelessWidget {
 
     // Weather at the user's position if they are in this region, else centre.
     final user = state.userPosition;
-    final weatherPoint =
-        user != null && region.contains(user) ? user : region.center;
+    final weatherPoint = user != null && region.contains(user)
+        ? user
+        : region.center;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -91,7 +92,10 @@ class _HomeBody extends StatelessWidget {
               gradient: LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
-                colors: [statusColor.withValues(alpha: 0.18), Colors.transparent],
+                colors: [
+                  statusColor.withValues(alpha: 0.18),
+                  Colors.transparent,
+                ],
               ),
             ),
             padding: const EdgeInsetsDirectional.fromSTEB(18, 8, 8, 18),
@@ -101,10 +105,17 @@ class _HomeBody extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(s.t('question'),
-                          style: text.labelLarge?.copyWith(color: Ember.textMuted)),
+                      child: Text(
+                        s.t('question'),
+                        style: text.labelLarge?.copyWith(
+                          color: Ember.textMuted,
+                        ),
+                      ),
                     ),
-                    InfoButton(title: s.t('question'), body: s.t('info_answer')),
+                    InfoButton(
+                      title: s.t('question'),
+                      body: s.t('info_answer'),
+                    ),
                   ],
                 ),
                 Padding(
@@ -112,23 +123,36 @@ class _HomeBody extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _StatusBadge(status: summary.status, label: s.status(summary.status)),
+                      _StatusBadge(
+                        status: summary.status,
+                        label: s.status(summary.status),
+                      ),
                       const SizedBox(height: 12),
-                      Text(s.sentence(summary, region),
-                          style: text.headlineSmall?.copyWith(height: 1.35)),
+                      Text(
+                        s.sentence(summary, region),
+                        style: text.headlineSmall?.copyWith(height: 1.35),
+                      ),
                       const SizedBox(height: 18),
                       _UsualMeter(ratio: summary.ratio, color: statusColor),
                       const SizedBox(height: 16),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _Stat(label: s.t('fires_this_month'), value: '${summary.value}'),
                           _Stat(
-                              label: s.t('usual_month'),
-                              value: summary.median.round().toString()),
+                            label: s.t('fires_this_month'),
+                            value: '${summary.value}',
+                          ),
                           _Stat(
-                              label: s.t('rank_label'),
-                              value: s.rankOf(summary.rank, summary.yearsCompared)),
+                            label: s.t('usual_month'),
+                            value: summary.median.round().toString(),
+                          ),
+                          _Stat(
+                            label: s.t('rank_label'),
+                            value: s.rankOf(
+                              summary.rank,
+                              summary.yearsCompared,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -183,10 +207,14 @@ class _HomeBody extends StatelessWidget {
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
               leading: const Icon(Icons.science_outlined, color: Ember.amber),
-              title: Text(s.t('science_details'),
-                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              subtitle: Text(s.t('science_details_sub'),
-                  style: text.bodySmall?.copyWith(color: Ember.textMuted)),
+              title: Text(
+                s.t('science_details'),
+                style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                s.t('science_details_sub'),
+                style: text.bodySmall?.copyWith(color: Ember.textMuted),
+              ),
               childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
                 SectionCard(
@@ -206,8 +234,11 @@ class _HomeBody extends StatelessWidget {
                 const SizedBox(height: 12),
                 _EvidenceCard(record.evidence),
                 const SizedBox(height: 8),
-                Text('${s.t('units')}: ${record.units}',
-                    style: monoStyle(size: 11), textAlign: TextAlign.center),
+                Text(
+                  '${s.t('units')}: ${record.units}',
+                  style: monoStyle(size: 11),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),
@@ -239,12 +270,21 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.7)),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w700)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -263,56 +303,70 @@ class _UsualMeter extends StatelessWidget {
     final t = ((math.log(r) / math.ln2) / 4 + 0.5).clamp(0.0, 1.0);
     return Column(
       children: [
-        LayoutBuilder(builder: (context, c) {
-          final w = c.maxWidth;
-          return SizedBox(
-            height: 22,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: AlignmentDirectional.centerStart,
-              children: [
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    gradient: const LinearGradient(
-                      begin: AlignmentDirectional.centerStart,
-                      end: AlignmentDirectional.centerEnd,
-                      colors: [Ember.calm, Ember.amber, Ember.ember, Ember.extreme],
-                    ),
-                  ),
-                ),
-                // "Usual" tick in the middle.
-                PositionedDirectional(
-                  start: w / 2 - 1,
-                  child: Container(
-                      width: 2, height: 16, color: Ember.text.withValues(alpha: 0.6)),
-                ),
-                PositionedDirectional(
-                  start: (w * t - 11).clamp(0.0, math.max(0.0, w - 22)),
-                  child: Container(
-                    width: 22,
-                    height: 22,
+        LayoutBuilder(
+          builder: (context, c) {
+            final w = c.maxWidth;
+            return SizedBox(
+              height: 22,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: AlignmentDirectional.centerStart,
+                children: [
+                  Container(
+                    height: 8,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color,
-                      border: Border.all(color: Ember.surface, width: 3),
-                      boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.black38)],
+                      borderRadius: BorderRadius.circular(4),
+                      gradient: const LinearGradient(
+                        begin: AlignmentDirectional.centerStart,
+                        end: AlignmentDirectional.centerEnd,
+                        colors: [
+                          Ember.calm,
+                          Ember.amber,
+                          Ember.ember,
+                          Ember.extreme,
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                  // "Usual" tick in the middle.
+                  PositionedDirectional(
+                    start: w / 2 - 1,
+                    child: Container(
+                      width: 2,
+                      height: 16,
+                      color: Ember.text.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  PositionedDirectional(
+                    start: (w * t - 11).clamp(0.0, math.max(0.0, w - 22)),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                        border: Border.all(color: Ember.surface, width: 3),
+                        boxShadow: const [
+                          BoxShadow(blurRadius: 4, color: Colors.black38),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 4),
-        Row(children: [
-          Text(s.t('meter_less'), style: monoStyle(size: 11)),
-          const Spacer(),
-          Text(s.t('meter_usual'), style: monoStyle(size: 11)),
-          const Spacer(),
-          Text(s.t('meter_more'), style: monoStyle(size: 11)),
-        ]),
+        Row(
+          children: [
+            Text(s.t('meter_less'), style: monoStyle(size: 11)),
+            const Spacer(),
+            Text(s.t('meter_usual'), style: monoStyle(size: 11)),
+            const Spacer(),
+            Text(s.t('meter_more'), style: monoStyle(size: 11)),
+          ],
+        ),
       ],
     );
   }
@@ -333,7 +387,9 @@ class _QuickActions extends StatelessWidget {
           label: s.t('report_fire'),
           color: Ember.ember,
           onTap: () => Navigator.push(
-              context, MaterialPageRoute<void>(builder: (_) => const ReportScreen())),
+            context,
+            MaterialPageRoute<void>(builder: (_) => const ReportScreen()),
+          ),
         ),
         const SizedBox(width: 8),
         _ActionTile(
@@ -352,7 +408,8 @@ class _QuickActions extends StatelessWidget {
             final uri = Uri(scheme: 'tel', path: '125');
             if (!await launchUrl(uri)) {
               messenger.showSnackBar(
-                  SnackBar(content: Text('${s.t('could_not_open')} $uri')));
+                SnackBar(content: Text('${s.t('could_not_open')} $uri')),
+              );
             }
           },
         ),
@@ -369,12 +426,15 @@ class _QuickActions extends StatelessWidget {
             final where = pos == null
                 ? ''
                 : ' https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
-            final uri = Uri(scheme: 'sms', path: '125', queryParameters: {
-              'body': '${s.t('sms_text')}$where',
-            });
+            final uri = Uri(
+              scheme: 'sms',
+              path: '125',
+              queryParameters: {'body': '${s.t('sms_text')}$where'},
+            );
             if (!await launchUrl(uri)) {
               messenger.showSnackBar(
-                  SnackBar(content: Text('${s.t('could_not_open')} $uri')));
+                SnackBar(content: Text('${s.t('could_not_open')} $uri')),
+              );
             }
           },
         ),
@@ -398,39 +458,42 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Material(
-          color: color.withValues(alpha: 0.12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: color.withValues(alpha: 0.45)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 84),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, color: color, size: 26),
-                    const SizedBox(height: 6),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: Ember.text, fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                  ],
+    child: Material(
+      color: color.withValues(alpha: 0.12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 84),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 26),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Ember.text,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _Stat extends StatelessWidget {
@@ -439,19 +502,20 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Ember.textMuted)),
-            const SizedBox(height: 2),
-            Text(value, style: monoStyle(size: 17, color: Ember.text)),
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Ember.textMuted),
         ),
-      );
+        const SizedBox(height: 2),
+        Text(value, style: monoStyle(size: 17, color: Ember.text)),
+      ],
+    ),
+  );
 }
 
 class _EvidenceCard extends StatelessWidget {
@@ -469,20 +533,28 @@ class _EvidenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ErrorBar(label: s.t('raw_record'), value: e.heldOutErrorRaw, color: Ember.ash),
+          _ErrorBar(
+            label: s.t('raw_record'),
+            value: e.heldOutErrorRaw,
+            color: Ember.ash,
+          ),
           const SizedBox(height: 8),
-          _ErrorBar(label: s.t('harmonized'), value: e.heldOutErrorHarmonized, color: Ember.ember),
+          _ErrorBar(
+            label: s.t('harmonized'),
+            value: e.heldOutErrorHarmonized,
+            color: Ember.ember,
+          ),
           const SizedBox(height: 12),
           Text(
             s.ar
                 ? 'ينخفض الخطأ السنوي في السنوات المحجوبة من ${pct(e.heldOutErrorRaw)} '
-                    'إلى ${pct(e.heldOutErrorHarmonized)}. يرصد VIIRS '
-                    '${s.ratio(e.ratio)} خلايا حريق أكثر من MODIS هنا '
-                    '(فترة التداخل ${e.overlapFrom}–${e.overlapTo}).'
+                      'إلى ${pct(e.heldOutErrorHarmonized)}. يرصد VIIRS '
+                      '${s.ratio(e.ratio)} خلايا حريق أكثر من MODIS هنا '
+                      '(فترة التداخل ${e.overlapFrom}–${e.overlapTo}).'
                 : 'Yearly error on held-out years drops from ${pct(e.heldOutErrorRaw)} '
-                    'to ${pct(e.heldOutErrorHarmonized)}. VIIRS sees '
-                    '${s.ratio(e.ratio)} more fire cells than MODIS here '
-                    '(overlap ${e.overlapFrom}–${e.overlapTo}).',
+                      'to ${pct(e.heldOutErrorHarmonized)}. VIIRS sees '
+                      '${s.ratio(e.ratio)} more fire cells than MODIS here '
+                      '(overlap ${e.overlapFrom}–${e.overlapTo}).',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -492,32 +564,38 @@ class _EvidenceCard extends StatelessWidget {
 }
 
 class _ErrorBar extends StatelessWidget {
-  const _ErrorBar({required this.label, required this.value, required this.color});
+  const _ErrorBar({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
   final String label;
   final double value;
   final Color color;
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          SizedBox(width: 96, child: Text(label, style: monoStyle(size: 11))),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: value.clamp(0, 1),
-                minHeight: 10,
-                color: color,
-                backgroundColor: Ember.surfaceHigh,
-              ),
-            ),
+    children: [
+      SizedBox(width: 96, child: Text(label, style: monoStyle(size: 11))),
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: value.clamp(0, 1),
+            minHeight: 10,
+            color: color,
+            backgroundColor: Ember.surfaceHigh,
           ),
-          SizedBox(
-            width: 44,
-            child: Text('${(value * 100).round()}%',
-                style: monoStyle(size: 12, color: Ember.text),
-                textAlign: TextAlign.end),
-          ),
-        ],
-      );
+        ),
+      ),
+      SizedBox(
+        width: 44,
+        child: Text(
+          '${(value * 100).round()}%',
+          style: monoStyle(size: 12, color: Ember.text),
+          textAlign: TextAlign.end,
+        ),
+      ),
+    ],
+  );
 }
