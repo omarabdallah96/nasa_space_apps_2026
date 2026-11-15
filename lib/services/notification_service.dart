@@ -28,6 +28,18 @@ class NotificationService {
     _ready = true;
   }
 
+  /// Whether the OS currently lets the app show notifications, without asking.
+  Future<bool> isAllowed() async {
+    if (!supported) return false;
+    await init();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) return await android.areNotificationsEnabled() ?? false;
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    return (await ios?.checkPermissions())?.isEnabled ?? false;
+  }
+
   /// Asks the OS for permission (Android 13+, iOS). Returns false if denied.
   Future<bool> requestPermission() async {
     if (!supported) return false;

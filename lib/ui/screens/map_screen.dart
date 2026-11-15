@@ -105,7 +105,9 @@ class _MapScreenState extends State<MapScreen> {
                         TileLayer(
                           urlTemplate:
                               'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
-                              'VIIRS_SNPP_CorrectedReflectance_TrueColor/default/'
+                              // SNPP has had no imagery since early Nov 2026 (404s);
+                              // NOAA-20 carries the same VIIRS instrument.
+                              'VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/'
                               '$_gibsDate/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
                           maxNativeZoom: 9,
                           userAgentPackageName: 'com.example.nasa_space_apps_2026',

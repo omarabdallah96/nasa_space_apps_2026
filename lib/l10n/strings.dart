@@ -323,6 +323,8 @@ class S {
     'data_source_sub': 'NASA FIRMS · MODIS (2000–) + VIIRS (2012–)',
     'data_source_demo': 'Demo data · modelled on NASA FIRMS MODIS + VIIRS',
     'version': 'Version',
+    'watched_places_sub': 'Tap a place to get alerts for it',
+    'notifications_on_hint': 'To turn notifications off, use your phone settings',
     // Clarity & help
     'tab_history': 'History',
     'how_to_read': 'How to read this',
@@ -561,6 +563,8 @@ class S {
     'data_source_sub': 'ناسا FIRMS · مستشعر MODIS (منذ 2000) + VIIRS (منذ 2012)',
     'data_source_demo': 'بيانات تجريبية · مبنية على MODIS و VIIRS من ناسا',
     'version': 'الإصدار',
+    'watched_places_sub': 'اضغط على مكان لتلقي تنبيهاته',
+    'notifications_on_hint': 'لإيقاف الإشعارات، استخدم إعدادات هاتفك',
     'tab_history': 'السجل',
     'how_to_read': 'كيف تقرأ هذا',
     'got_it': 'فهمت',

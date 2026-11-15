@@ -6,11 +6,11 @@ import '../../services/background_checks.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../brand/ember_logo.dart';
-import '../widgets/common.dart';
 import 'onboarding_screen.dart';
 
-/// Everything the user can change, in one place: look, language,
-/// notifications, location, and about.
+/// Everything the user can change, in one place. Every row is a single tap:
+/// switches for on/off things, chips for places, and a two-way picker for
+/// language. Alerts come first because that is what people come here for.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -18,13 +18,46 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool? _notificationsAllowed;
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
+  bool _notificationsAllowed = false;
 
-  Future<void> _askNotifications() async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkNotifications());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The user may change permission in system settings and come back.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _checkNotifications();
+  }
+
+  Future<void> _checkNotifications() async {
+    if (!mounted) return;
+    final ok = await AppScope.read(context).notifications.isAllowed();
+    if (mounted && ok != _notificationsAllowed) {
+      setState(() => _notificationsAllowed = ok);
+    }
+  }
+
+  Future<void> _toggleNotifications(bool on) async {
     final state = AppScope.read(context);
     final s = S.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    if (!on) {
+      // Apps cannot revoke their own permission; point the user to the OS.
+      messenger.showSnackBar(SnackBar(content: Text(s.t('notifications_on_hint'))));
+      return;
+    }
     final ok = await state.notifications.requestPermission();
     if (!mounted) return;
     setState(() => _notificationsAllowed = ok);
@@ -58,124 +91,139 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(s.t('settings'))),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
-          // ── Appearance ──
-          _GroupLabel(s.t('appearance')),
-          _Group(children: [
-            _ChoiceRow(
-              icon: Icons.contrast,
-              title: s.t('theme'),
-              child: SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: [
-                  ButtonSegment(
-                    value: true,
-                    icon: const Icon(Icons.dark_mode_outlined, size: 18),
-                    label: Text(s.t('dark')),
-                  ),
-                  ButtonSegment(
-                    value: false,
-                    icon: const Icon(Icons.light_mode_outlined, size: 18),
-                    label: Text(s.t('light')),
-                  ),
-                ],
-                selected: {state.darkMode},
-                onSelectionChanged: (v) => state.setDarkMode(v.first),
-              ),
-            ),
-            _ChoiceRow(
-              icon: Icons.translate,
-              title: s.t('language_label'),
-              child: SegmentedButton<String>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: 'en', label: Text('English')),
-                  ButtonSegment(value: 'ar', label: Text('العربية')),
-                ],
-                selected: {state.languageCode},
-                onSelectionChanged: (v) => state.setLanguage(v.first),
-              ),
-            ),
-          ]),
-
           // ── Alerts ──
-          _GroupLabel(s.t('alerts')),
+          _Header(s.t('alerts')),
           _Group(children: [
-            _Tile(
+            _SwitchRow(
               icon: Icons.notifications_active_outlined,
               title: s.t('notifications'),
               subtitle: s.t('notifications_sub'),
-              trailing: _notificationsAllowed == true
-                  ? _AllowedBadge(s.t('allowed'))
-                  : TextButton(
-                      onPressed: state.notifications.supported ? _askNotifications : null,
-                      child: Text(s.t('allow')),
-                    ),
+              value: _notificationsAllowed,
+              onChanged: state.notifications.supported ? _toggleNotifications : null,
             ),
             if (BackgroundChecks.supported)
-              _Tile(
+              _SwitchRow(
                 icon: Icons.schedule,
                 title: s.t('background_checks'),
                 subtitle: s.t('background_checks_sub'),
-                trailing: Switch(
-                  value: state.backgroundChecks,
-                  onChanged: state.setBackgroundChecks,
-                ),
-                onTap: () => state.setBackgroundChecks(!state.backgroundChecks),
+                value: state.backgroundChecks,
+                onChanged: state.setBackgroundChecks,
               ),
-            _Tile(
-              icon: Icons.place_outlined,
-              title: s.t('watched_places'),
-              subtitle: state.regions
-                  .where((r) => state.watchlist.contains(r.id))
-                  .map(s.region)
-                  .join(' · '),
-              trailing: Text('${state.watchlist.length}', style: monoStyle(size: 14)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _RowTitle(
+                    icon: Icons.place_outlined,
+                    title: s.t('watched_places'),
+                    subtitle: s.t('watched_places_sub'),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final r in state.regions)
+                        FilterChip(
+                          label: Text(s.region(r)),
+                          selected: state.watchlist.contains(r.id),
+                          onSelected: (_) => state.toggleWatch(r.id),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ]),
 
           // ── Location ──
-          _GroupLabel(s.t('location')),
+          _Header(s.t('location')),
           _Group(children: [
-            _Tile(
-              icon: located ? Icons.my_location : Icons.location_searching,
-              iconColor: located ? Ember.calm : null,
-              title: s.t('use_location'),
-              subtitle: locationSub,
-              subtitleColor: state.locationError != null ? Ember.extreme : null,
+            ListTile(
+              onTap: state.locating ? null : state.locateMe,
+              contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+              leading: _IconBox(
+                located ? Icons.my_location : Icons.location_searching,
+                color: located ? Ember.calm : null,
+              ),
+              title: Text(s.t('use_location'), style: _titleStyle),
+              subtitle: Text(
+                locationSub,
+                style: TextStyle(
+                  color: state.locationError != null ? Ember.extreme : Ember.textMuted,
+                ),
+              ),
               trailing: state.locating
                   ? const SizedBox.square(
-                      dimension: 20,
+                      dimension: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Ember.ember),
                     )
-                  : TextButton(
-                      onPressed: state.locateMe,
-                      child: Text(s.t(located ? 'refresh' : 'allow')),
-                    ),
+                  : located
+                      ? Icon(Icons.refresh, color: Ember.textMuted)
+                      : FilledButton.tonal(
+                          onPressed: state.locateMe,
+                          child: Text(s.t('allow')),
+                        ),
+            ),
+          ]),
+
+          // ── Appearance ──
+          _Header(s.t('appearance')),
+          _Group(children: [
+            _SwitchRow(
+              icon: state.darkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+              title: s.t('dark_mode'),
+              value: state.darkMode,
+              onChanged: state.setDarkMode,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _RowTitle(icon: Icons.translate, title: s.t('language_label')),
+                  const SizedBox(height: 12),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'en', label: Text('English')),
+                      ButtonSegment(value: 'ar', label: Text('العربية')),
+                    ],
+                    selected: {state.languageCode},
+                    onSelectionChanged: (v) => state.setLanguage(v.first),
+                  ),
+                ],
+              ),
             ),
           ]),
 
           // ── About ──
-          _GroupLabel(s.t('about')),
+          _Header(s.t('about')),
           _Group(children: [
-            _Tile(
-              icon: Icons.slideshow_outlined,
-              title: s.t('replay_intro'),
-              trailing: Icon(Icons.chevron_right, color: Ember.textMuted),
+            ListTile(
               onTap: _replayIntro,
+              contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+              leading: const _IconBox(Icons.slideshow_outlined),
+              title: Text(s.t('replay_intro'), style: _titleStyle),
+              trailing: Icon(Icons.chevron_right, color: Ember.textMuted),
             ),
-            _Tile(
-              icon: Icons.satellite_alt_outlined,
-              title: s.t('data_source'),
-              subtitle: s.t(useMockData ? 'data_source_demo' : 'data_source_sub'),
+            ListTile(
+              contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+              leading: const _IconBox(Icons.satellite_alt_outlined),
+              title: Text(s.t('data_source'), style: _titleStyle),
+              subtitle: Text(
+                s.t(useMockData ? 'data_source_demo' : 'data_source_sub'),
+                style: TextStyle(color: Ember.textMuted),
+              ),
             ),
           ]),
 
           const SizedBox(height: 28),
           Center(
             child: Column(children: [
-              const EmberLogo(size: 40),
+              const EmberLogo(size: 36),
               const SizedBox(height: 8),
               Text(s.t('app_name'), style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 2),
@@ -188,18 +236,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.text);
+const _titleStyle = TextStyle(fontWeight: FontWeight.w600);
+
+class _Header extends StatelessWidget {
+  const _Header(this.text);
   final String text;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(4, 20, 4, 8),
+        padding: const EdgeInsetsDirectional.fromSTEB(4, 24, 4, 8),
         child: Text(
-          text.toUpperCase(),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Ember.amber,
-                letterSpacing: 1.1,
+          text,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Ember.textMuted,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -213,74 +262,74 @@ class _Group extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 1, indent: 56, color: Ember.outline),
+            if (i > 0) Divider(height: 1, indent: 68, color: Ember.outline),
             children[i],
           ],
         ]),
       );
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
+/// A whole-row switch: tapping anywhere on the row flips it.
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
     required this.icon,
     required this.title,
     this.subtitle,
-    this.trailing,
-    this.onTap,
-    this.iconColor,
-    this.subtitleColor,
+    required this.value,
+    required this.onChanged,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-  final Color? iconColor, subtitleColor;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 4, 8, 4),
-        leading: _IconBox(icon, color: iconColor),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: subtitle == null || subtitle!.isEmpty
+  Widget build(BuildContext context) => SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+        secondary: _IconBox(icon),
+        title: Text(title, style: _titleStyle),
+        subtitle: subtitle == null
             ? null
-            : Text(subtitle!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: subtitleColor ?? Ember.textMuted)),
-        trailing: trailing,
+            : Text(subtitle!, style: TextStyle(color: Ember.textMuted)),
       );
 }
 
-/// A row with a title on top and a full-width control below it.
-class _ChoiceRow extends StatelessWidget {
-  const _ChoiceRow({required this.icon, required this.title, required this.child});
+/// Icon + title (+ optional subtitle) for rows whose control sits below.
+class _RowTitle extends StatelessWidget {
+  const _RowTitle({required this.icon, required this.title, this.subtitle});
   final IconData icon;
   final String title;
-  final Widget child;
+  final String? subtitle;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(children: [
-              _IconBox(icon),
-              const SizedBox(width: 16),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-            ]),
-            const SizedBox(height: 12),
-            child,
-          ],
+  Widget build(BuildContext context) => Row(children: [
+        _IconBox(icon),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: _titleStyle),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Ember.textMuted),
+                ),
+            ],
+          ),
         ),
-      );
+      ]);
 }
 
 class _IconBox extends StatelessWidget {
@@ -301,15 +350,4 @@ class _IconBox extends StatelessWidget {
       child: Icon(icon, size: 20, color: c),
     );
   }
-}
-
-class _AllowedBadge extends StatelessWidget {
-  const _AllowedBadge(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsetsDirectional.only(end: 8),
-        child: StatusPill(label: label, color: Ember.calm),
-      );
 }

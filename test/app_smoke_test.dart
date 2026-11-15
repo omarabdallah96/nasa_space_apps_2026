@@ -143,14 +143,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Settings'), findsWidgets);
 
-    await tester.tap(find.text('Light'));
+    final darkSwitch = find.widgetWithText(SwitchListTile, 'Dark mode');
+    await tester.scrollUntilVisible(darkSwitch, 200,
+        scrollable: find.byType(Scrollable).last);
+    await settle(tester);
+    await tester.tap(darkSwitch);
     await settle(tester);
     expect(state.darkMode, isFalse);
     expect(bg(), isNot(darkBg));
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('dark_mode'), isFalse);
 
-    await tester.tap(find.text('Dark'));
+    await tester.tap(darkSwitch);
     await settle(tester);
     expect(state.darkMode, isTrue);
     expect(bg(), darkBg);
