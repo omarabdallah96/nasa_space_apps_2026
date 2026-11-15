@@ -61,6 +61,7 @@ class S {
           ? 'شبه انعدام للحرائق'
           : 'أقل من المعتاد (${(s.ratio * 100).round()}% من الطبيعي)',
       FireStatus.normal => 'ضمن المعدّل الطبيعي (${ratio(s.ratio)} المعتاد)',
+      _ when s.usuallyNone => '${s.value} خلية حريق، في شهر لا تكاد تحدث فيه حرائق عادةً',
       FireStatus.above => '${ratio(s.ratio)} المستوى المعتاد',
       FireStatus.extreme => '${ratio(s.ratio)} المستوى المعتاد — حالة استثنائية',
     };

@@ -143,7 +143,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _row(s.t('raw_count'), '${c.raw}'),
             _row(s.t('harmonized'), '${c.harmonized}'),
             _row(s.t('usual_median'), sum.median.round().toString()),
-            _row(s.t('vs_usual'), '${sum.ratio.toStringAsFixed(2)}×'),
+            _row(s.t('vs_usual'), sum.usuallyNone ? '—' : '${sum.ratio.toStringAsFixed(2)}×'),
             _row(s.t('rank'), '#${sum.rank} / ${sum.yearsCompared}'),
           ],
         ),

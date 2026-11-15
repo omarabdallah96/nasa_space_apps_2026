@@ -27,8 +27,12 @@ class AnomalySummary {
   final int value;
   final double median;
 
-  /// value / median of the baseline. 1.0 = exactly usual.
+  /// value / median of the baseline. 1.0 = exactly usual. Infinite when
+  /// there are fires in a month that usually has none (median 0).
   final double ratio;
+
+  /// Fires in a month that usually has none: no "×" to show.
+  bool get usuallyNone => ratio.isInfinite;
 
   /// 1 = highest of all years for this calendar month.
   final int rank;
@@ -44,6 +48,7 @@ class AnomalySummary {
           ? 'almost no fire activity'
           : 'below the usual level (${_pct(ratio)} of normal)',
       FireStatus.normal => 'within the normal range (${_ratio(ratio)} the usual level)',
+      _ when usuallyNone => '$value fire cells, in a month that usually has almost none',
       FireStatus.above => '${_ratio(ratio)} the usual level',
       FireStatus.extreme => '${_ratio(ratio)} the usual level — extreme',
     };
@@ -75,7 +80,10 @@ AnomalySummary summarize(FireRecord record, {int? year, int? month}) {
 
   final band = record.seasonFor(m);
   final value = current.harmonized;
-  final ratio = band.median <= 0 ? 0.0 : value / band.median;
+  // A usual of zero: any fire is more than usual, none is exactly usual.
+  final ratio = band.median <= 0
+      ? (value > 0 ? double.infinity : 1.0)
+      : value / band.median;
 
   final sameMonth = record.monthly.where((c) => c.month == m).toList();
   final rank = 1 + sameMonth.where((c) => c.harmonized > value).length;

@@ -253,7 +253,7 @@ class _WatchTile extends StatelessWidget {
                           sum == null
                               ? s.t('loading')
                               : '${s.month(sum.month)} ${sum.year} · '
-                                  '${s.ratio(sum.ratio)} ${s.t('usual_short')} · #${sum.rank}',
+                                  '${sum.usuallyNone ? '${sum.value}' : '${s.ratio(sum.ratio)} ${s.t('usual_short')}'} · #${sum.rank}',
                           style: monoStyle(size: 12),
                         ),
                       ],

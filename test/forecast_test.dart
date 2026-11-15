@@ -14,6 +14,7 @@ import 'package:nasa_space_apps_2026/data/models/fire_record.dart';
 import 'package:nasa_space_apps_2026/data/models/region.dart';
 import 'package:nasa_space_apps_2026/data/repositories/api_fire_repository.dart';
 import 'package:nasa_space_apps_2026/data/repositories/mock_fire_repository.dart';
+import 'package:nasa_space_apps_2026/domain/anomaly.dart';
 import 'package:nasa_space_apps_2026/l10n/strings.dart';
 import 'package:nasa_space_apps_2026/services/alert_engine.dart';
 import 'package:nasa_space_apps_2026/services/notification_service.dart';
@@ -165,6 +166,24 @@ void main() {
     ]);
     expect(withDanger.best, isNull);
     expect(withDanger.days.first.advice.reasons, contains('why_danger_high'));
+  });
+
+  test('fires in a month that usually has none read as more, not 0.0x', () {
+    final json = jsonDecode(File('assets/mock/record_lebanon.json').readAsStringSync())
+        as Map<String, dynamic>;
+    for (final m in (json['season'] as List).cast<Map<String, dynamic>>()) {
+      m['p10'] = 0;
+      m['median'] = 0;
+      m['p90'] = 0;
+    }
+    final monthly = (json['monthly'] as List).cast<Map<String, dynamic>>();
+    monthly.last['harmonized'] = 29;
+    final sum = summarize(FireRecord.fromJson(json));
+    expect(sum.usuallyNone, isTrue);
+    expect(sum.status, FireStatus.extreme);
+    expect(sum.sentence('Lebanon'), contains('29 fire cells, in a month that usually has almost none'));
+    expect(sum.sentence('Lebanon'), isNot(contains('0.0×')));
+    expect(const S(true).sentence(sum, _lebanon), contains('لا تكاد تحدث'));
   });
 
   testWidgets('the Today card shows the week and opens a day', (tester) async {
