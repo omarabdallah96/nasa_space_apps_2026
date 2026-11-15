@@ -182,7 +182,15 @@ back to its disk copy when Overpass is down.
                    "nameAr": "نهر الليطاني", "lat": 33.61, "lon": 35.69, "distanceKm": 1.09, "bearingDeg": 220 } ] }
 ```
 
-`kind` is `water | fire_station | hospital | assembly_point`.
+`kind` is `water | civil_defense | red_cross | fire_station | hospital | assembly_point`.
+Civil defence and Red Cross centres have no tag of their own in OpenStreetMap,
+so they are recognised by name or operator (Arabic, English, French); an
+ambulance station without a name counts as `red_cross` with `detail: "ambulance_station"`.
+
+`GET /help?lat=&lon=`: the nearest help to a person, within 50 km: up to three
+each of `civil_defense`, `red_cross`, `hospital` (no clinics) and
+`fire_station`, nearest first, in the same shape as `/resources`. The app shows
+the nearest of each on the home screen.
 
 `GET /escape?lat=&lon=&fires=lat,lon;lat,lon` (at most 200 fires): danger
 areas around the fires, stretched downwind with the current wind

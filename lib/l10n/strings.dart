@@ -589,6 +589,15 @@ class S {
     'res_clinic': 'Clinic',
     'res_assembly_point': 'Assembly point',
     'res_town': 'Town',
+    'safety_civil_defense': 'Civil defense',
+    'safety_red_cross': 'Red Cross and ambulance',
+    'res_civil_defense': 'Civil defense centre',
+    'res_red_cross': 'Red Cross centre',
+    'res_ambulance_station': 'Ambulance station',
+    'help_title': 'Nearest help',
+    'help_hint': 'Turn on location to see the nearest civil defense, Red Cross and hospital.',
+    'help_none': 'None mapped within 50 km',
+    'help_ways_out': 'Ways out from here',
   };
 
   static const _ar = <String, String>{
@@ -1007,6 +1016,15 @@ class S {
     'res_clinic': 'عيادة',
     'res_assembly_point': 'نقطة تجمّع',
     'res_town': 'بلدة',
+    'safety_civil_defense': 'الدفاع المدني',
+    'safety_red_cross': 'الصليب الأحمر والإسعاف',
+    'res_civil_defense': 'مركز دفاع مدني',
+    'res_red_cross': 'مركز الصليب الأحمر',
+    'res_ambulance_station': 'مركز إسعاف',
+    'help_title': 'أقرب مساعدة',
+    'help_hint': 'فعّل الموقع لترى أقرب مركز دفاع مدني وصليب أحمر ومستشفى.',
+    'help_none': 'لا شيء مسجّل ضمن 50 كم',
+    'help_ways_out': 'طرق الخروج من هنا',
   };
 
   /// For tests.

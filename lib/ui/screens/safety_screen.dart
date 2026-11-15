@@ -28,7 +28,7 @@ Future<void> openSafety(
 /// Where the routes start.
 enum _From { me, target }
 
-/// Nearby water, fire stations, hospitals and assembly points around a fire
+/// Nearby water, civil defense, Red Cross, fire stations, hospitals and assembly points around a fire
 /// or zone, and the fastest roads out that avoid the fire and its downwind side.
 class SafetyScreen extends StatefulWidget {
   const SafetyScreen({super.key, required this.target, this.fires = const [], this.zone});
@@ -235,7 +235,7 @@ class _SafetyScreenState extends State<SafetyScreen> {
                 height: 28,
                 child: GestureDetector(
                   onTap: () => _showResource(r),
-                  child: _ResourcePin(r.kind),
+                  child: ResourcePin(r.kind),
                 ),
               ),
             for (final f in _fires.take(300))
@@ -394,7 +394,7 @@ class _SafetyScreenState extends State<SafetyScreen> {
   Widget _windLine(S s, Wind? w) {
     final label = w == null || w.speedKmh < 5
         ? s.t('safety_calm')
-        : '${s.t('safety_wind')} ${w.speedKmh.round()} km/h · ${s.t('safety_spreads')} ${s.compass(_compass(w.towardDeg))}';
+        : '${s.t('safety_wind')} ${w.speedKmh.round()} km/h · ${s.t('safety_spreads')} ${s.compass(compassIndex(w.towardDeg))}';
     return Row(children: [
       Transform.rotate(
         angle: (w?.towardDeg ?? 0) * 3.14159265 / 180,
@@ -413,6 +413,8 @@ class _SafetyScreenState extends State<SafetyScreen> {
     final s = S.of(context);
     const groups = [
       (ResourceKind.water, 'safety_water'),
+      (ResourceKind.civilDefense, 'safety_civil_defense'),
+      (ResourceKind.redCross, 'safety_red_cross'),
       (ResourceKind.fireStation, 'safety_fire_station'),
       (ResourceKind.hospital, 'safety_hospital'),
       (ResourceKind.assemblyPoint, 'safety_assembly'),
@@ -423,7 +425,7 @@ class _SafetyScreenState extends State<SafetyScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 10, bottom: 2),
             child: Row(children: [
-              _ResourcePin(kind, size: 20),
+              ResourcePin(kind, size: 20),
               const SizedBox(width: 8),
               Text(s.t(key), style: const TextStyle(fontWeight: FontWeight.w700)),
             ]),
@@ -433,11 +435,11 @@ class _SafetyScreenState extends State<SafetyScreen> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               onTap: () => _showResource(r),
-              title: Text(r.displayName(s.ar) ?? _detail(s, r.detail),
+              title: Text(r.displayName(s.ar) ?? resourceDetail(s, r.detail),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: r.displayName(s.ar) == null ? null : Text(_detail(s, r.detail)),
+              subtitle: r.displayName(s.ar) == null ? null : Text(resourceDetail(s, r.detail)),
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('${_km(r.distanceKm)} · ${s.compass(_compass(r.bearingDeg))}',
+                Text('${formatKm(r.distanceKm)} · ${s.compass(compassIndex(r.bearingDeg))}',
                     style: monoStyle(size: 12)),
                 IconButton(
                   tooltip: s.t('safety_navigate'),
@@ -486,13 +488,14 @@ class _SafetyScreenState extends State<SafetyScreen> {
 
 const _safe = Color(0xFF2E9A72);
 
-int _compass(int bearing) => ((bearing + 22.5) ~/ 45) % 8;
+int compassIndex(int bearing) => ((bearing + 22.5) ~/ 45) % 8;
 
-String _km(double km) => km < 1 ? '${(km * 1000).round()} m' : '${km.toStringAsFixed(1)} km';
+String formatKm(double km) => km < 1 ? '${(km * 1000).round()} m' : '${km.toStringAsFixed(1)} km';
 
-String _detail(S s, String detail) {
+String resourceDetail(S s, String detail) {
   final key = switch (detail) {
     'hydrant' || 'water_tank' || 'suction_point' || 'pond' || 'lake' || 'reservoir' || 'river' || 'canal' ||
+    'civil_defense' || 'red_cross' || 'ambulance_station' ||
     'fire_station' || 'hospital' || 'clinic' || 'assembly_point' => 'res_$detail',
     'city' || 'town' || 'village' => 'res_town',
     _ => 'res_water',
@@ -500,8 +503,10 @@ String _detail(S s, String detail) {
   return s.t(key);
 }
 
-IconData _kindIcon(ResourceKind? k) => switch (k) {
+IconData resourceIcon(ResourceKind? k) => switch (k) {
       ResourceKind.water => Icons.water_drop,
+      ResourceKind.civilDefense => Icons.shield,
+      ResourceKind.redCross => Icons.add_box,
       ResourceKind.fireStation => Icons.fire_truck,
       ResourceKind.hospital => Icons.local_hospital,
       ResourceKind.assemblyPoint => Icons.groups,
@@ -509,16 +514,18 @@ IconData _kindIcon(ResourceKind? k) => switch (k) {
       null => Icons.explore,
     };
 
-Color _kindColor(ResourceKind k) => switch (k) {
+Color resourceColor(ResourceKind k) => switch (k) {
       ResourceKind.water => const Color(0xFF2F8FD8),
+      ResourceKind.civilDefense => const Color(0xFFE2671B),
+      ResourceKind.redCross => const Color(0xFFD81E2C),
       ResourceKind.fireStation => Ember.extreme,
       ResourceKind.hospital => const Color(0xFFB0246E),
       ResourceKind.assemblyPoint => _safe,
       ResourceKind.town => Ember.ash,
     };
 
-class _ResourcePin extends StatelessWidget {
-  const _ResourcePin(this.kind, {this.size = 28});
+class ResourcePin extends StatelessWidget {
+  const ResourcePin(this.kind, {super.key, this.size = 28});
   final ResourceKind kind;
   final double size;
 
@@ -528,11 +535,11 @@ class _ResourcePin extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _kindColor(kind),
+          color: resourceColor(kind),
           border: Border.all(color: Colors.white, width: 2),
           boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.black38)],
         ),
-        child: Icon(_kindIcon(kind), color: Colors.white, size: size * 0.55),
+        child: Icon(resourceIcon(kind), color: Colors.white, size: size * 0.55),
       );
 }
 
@@ -549,7 +556,9 @@ class _RouteCard extends StatelessWidget {
     final name = route.displayName(s.ar);
     final where = route.destinationKind == null
         ? s.t('safety_away')
-        : '${s.t('safety_to')} ${name ?? _detail(s, switch (route.destinationKind!) {
+        : '${s.t('safety_to')} ${name ?? resourceDetail(s, switch (route.destinationKind!) {
+              ResourceKind.civilDefense => 'civil_defense',
+              ResourceKind.redCross => 'red_cross',
               ResourceKind.fireStation => 'fire_station',
               ResourceKind.hospital => 'hospital',
               ResourceKind.assemblyPoint => 'assembly_point',
@@ -569,7 +578,7 @@ class _RouteCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
           child: Row(children: [
-            Icon(_kindIcon(route.destinationKind), color: color),
+            Icon(resourceIcon(route.destinationKind), color: color),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -577,8 +586,8 @@ class _RouteCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
                 Text(
-                  '${_km(route.distanceKm)} · ${route.durationMin} ${s.t('safety_min')} · '
-                  '${s.t('safety_heading')} ${s.compass(_compass(route.headingDeg))}',
+                  '${formatKm(route.distanceKm)} · ${route.durationMin} ${s.t('safety_min')} · '
+                  '${s.t('safety_heading')} ${s.compass(compassIndex(route.headingDeg))}',
                   style: monoStyle(size: 12),
                 ),
                 const SizedBox(height: 6),

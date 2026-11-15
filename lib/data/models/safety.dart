@@ -1,10 +1,12 @@
 import 'package:latlong2/latlong.dart';
 
 /// What a nearby place is good for in a fire.
-enum ResourceKind { water, fireStation, hospital, assemblyPoint, town }
+enum ResourceKind { water, civilDefense, redCross, fireStation, hospital, assemblyPoint, town }
 
 ResourceKind _kind(String s) => switch (s) {
       'water' => ResourceKind.water,
+      'civil_defense' => ResourceKind.civilDefense,
+      'red_cross' => ResourceKind.redCross,
       'fire_station' => ResourceKind.fireStation,
       'hospital' => ResourceKind.hospital,
       'assembly_point' => ResourceKind.assemblyPoint,
@@ -28,7 +30,8 @@ class SafetyResource {
   final ResourceKind kind;
 
   /// hydrant, water_tank, suction_point, pond, lake, reservoir, river, canal,
-  /// fire_station, hospital, clinic, assembly_point…
+  /// civil_defense, red_cross, ambulance_station, fire_station, hospital,
+  /// clinic, assembly_point…
   final String detail;
   final String? name, nameAr;
   final LatLng position;

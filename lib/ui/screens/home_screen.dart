@@ -16,6 +16,7 @@ import '../widgets/danger_forecast_card.dart';
 import '../widgets/fire_rings.dart';
 import '../widgets/fire_weather_card.dart';
 import '../widgets/near_me_card.dart';
+import '../widgets/nearest_help_card.dart';
 import '../widgets/season_chart.dart';
 import '../widgets/share_card.dart';
 import 'report_screen.dart';
@@ -148,6 +149,7 @@ class _HomeBody extends StatelessWidget {
         const SizedBox(height: 16),
         // 3. Around me.
         const NearMeCard(),
+        const NearestHelpCard(),
         const SizedBox(height: 16),
         // 4. What is coming.
         DangerForecastCard(point: weatherPoint),

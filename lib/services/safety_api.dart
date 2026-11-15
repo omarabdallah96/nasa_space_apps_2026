@@ -8,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/safety.dart';
 import '../data/models/zone.dart';
 
-/// Nearby water and services (`GET /resources`) and escape routes
-/// (`GET /escape`). Every answer is also kept on the phone, because during a
+/// Nearby water and services (`GET /resources`), the nearest help
+/// (`GET /help`) and escape routes (`GET /escape`). Every answer is also kept on the phone, because during a
 /// fire the network is often the first thing to go.
 class SafetyApi {
   SafetyApi({required this.baseUrl, http.Client? client}) : _client = client ?? http.Client();
@@ -30,6 +30,23 @@ class SafetyApi {
     final saved = await _get(
       'res.${_p(at)}.$r',
       Uri.parse('$baseUrl/resources?lat=${at.latitude}&lon=${at.longitude}&radiusKm=$r'),
+    );
+    return Saved(
+      [
+        for (final j in saved.value['resources'] as List)
+          SafetyResource.fromJson(j as Map<String, dynamic>),
+      ],
+      savedAt: saved.savedAt,
+    );
+  }
+
+  /// The nearest civil defense centres, Red Cross centres, hospitals and fire
+  /// stations to a person (`GET /help`), up to three of each, nearest first.
+  Future<Saved<List<SafetyResource>>> nearestHelp(LatLng at) async {
+    final saved = await _get(
+      // About a kilometre: walking around does not ask the server again.
+      'help.${_p(at, 2)}',
+      Uri.parse('$baseUrl/help?lat=${at.latitude}&lon=${at.longitude}'),
     );
     return Saved(
       [
