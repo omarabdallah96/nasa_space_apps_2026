@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,7 +61,12 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
     PathProviderPlatform.instance = _FakePaths();
   });
-  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+    // Asset loads are cached across tests; a cached load from an earlier
+    // widget test never completes in the next one.
+    rootBundle.clear();
+  });
 
   group('zone model', () {
     final z = AlertZone(
