@@ -122,10 +122,24 @@ class _MapScreenState extends State<MapScreen> {
                             for (final r in state.reports)
                               if (r.bearing != null)
                                 Polyline(
-                                  points: [r.position, project(r.position, r.bearing!, 30)],
+                                  points: [r.position, project(r.position, r.bearing!, 8)],
                                   strokeWidth: 2,
                                   color: Ember.amber.withValues(alpha: 0.85),
                                   pattern: StrokePattern.dashed(segments: const [8, 6]),
+                                ),
+                            // Arrowhead at the tip, pointing the way the report faced.
+                            for (final r in state.reports)
+                              if (r.bearing != null)
+                                Polyline(
+                                  points: [
+                                    project(project(r.position, r.bearing!, 8), r.bearing! + 150, 1),
+                                    project(r.position, r.bearing!, 8),
+                                    project(project(r.position, r.bearing!, 8), r.bearing! - 150, 1),
+                                  ],
+                                  strokeWidth: 3,
+                                  strokeCap: StrokeCap.round,
+                                  strokeJoin: StrokeJoin.round,
+                                  color: Ember.amber,
                                 ),
                           ],
                         ),
