@@ -16,7 +16,9 @@ import 'package:nasa_space_apps_2026/data/models/zone.dart';
 import 'package:nasa_space_apps_2026/data/repositories/api_fire_repository.dart';
 import 'package:nasa_space_apps_2026/data/repositories/mock_fire_repository.dart';
 import 'package:nasa_space_apps_2026/services/alert_engine.dart';
+import 'package:nasa_space_apps_2026/l10n/strings.dart';
 import 'package:nasa_space_apps_2026/services/auth_api.dart';
+import 'package:nasa_space_apps_2026/services/broadcast_api.dart';
 import 'package:nasa_space_apps_2026/services/notification_service.dart';
 import 'package:nasa_space_apps_2026/state/app_state.dart';
 import 'package:nasa_space_apps_2026/ui/screens/zone_report_screen.dart';
@@ -121,6 +123,44 @@ void main() {
     final again = await _state(prefs: {'zones': saved});
     expect(again.zones.map((z) => z.name), ['Farm', 'Village']);
     expect(again.activeZones.map((z) => z.name), ['Farm']); // Pro off: the second is paused
+  });
+
+  test('a zone alert from the admin reaches overlapping zones and people inside only', () async {
+    Map<String, Object> bc(String id, LatLng c, double r) => {
+          'id': id, 'title': 'Fire $id', 'message': 'Avoid the area', 'titleAr': 'حريق $id', 'messageAr': '',
+          'level': 'danger', 'lat': c.latitude, 'lon': c.longitude, 'radiusKm': r,
+          'expiresAt': '2026-12-01T00:00:00Z',
+        };
+    final client = MockClient((req) async => http.Response(
+        jsonEncode({
+          'broadcasts': [
+            bc('near', const LatLng(33.40, 35.40), 5), // ~7 km from the farm: circles overlap (5 + 3)
+            bc('far', const LatLng(34.40, 36.00), 5), // north Lebanon: no zone there
+          ],
+        }),
+        200));
+    SharedPreferences.setMockInitialValues({'onboarded': true, 'watchlist': <String>[]});
+    final s = AppState(MockFireRepository(latency: Duration.zero),
+        prefs: await SharedPreferences.getInstance(),
+        notifications: _NoNotifications(),
+        broadcastApi: BroadcastApi(baseUrl: 'https://api.test/api/v1', client: client));
+    await s.init(checkOnStart: false);
+    await s.addZone('Farm', _fireA, 3);
+    await s.checkAlerts();
+
+    var official = s.alerts.where((a) => a.type == AlertType.official).toList();
+    expect(official.map((a) => a.broadcast!.id), ['near']);
+    expect(official.single.zone!.name, 'Farm');
+    expect(official.single.level, AlertLevel.danger);
+    expect(const S(true).alertTitle(official.single), 'حريق near');
+    expect(const S(false).alertBody(official.single), contains('your zone "Farm"'));
+
+    // Standing inside the far circle reaches the user without a zone.
+    s.lastKnownPosition = const LatLng(34.41, 36.01);
+    await s.checkAlerts();
+    official = s.alerts.where((a) => a.type == AlertType.official).toList();
+    expect(official.map((a) => a.broadcast!.id).toSet(), {'near', 'far'});
+    expect(official.firstWhere((a) => a.broadcast!.id == 'far').zone, isNull);
   });
 
   test('a Pro plan on the account lifts the limit', () async {

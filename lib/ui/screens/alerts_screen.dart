@@ -182,6 +182,7 @@ class _AlertTile extends StatelessWidget {
       AlertType.groundSmoke => Icons.explore_outlined,
       AlertType.dangerForecast => Icons.thermostat_auto,
       AlertType.zoneFire => Icons.radar,
+      AlertType.official => Icons.campaign_outlined,
     };
     return Card(
       clipBehavior: Clip.antiAlias,

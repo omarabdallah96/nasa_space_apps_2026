@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../data/models/broadcast.dart';
 import '../data/models/danger_forecast.dart';
 import '../data/models/fire_record.dart';
 import '../data/models/hotspot.dart';
@@ -8,7 +9,7 @@ import '../data/models/zone.dart';
 import '../domain/anomaly.dart';
 import 'location_service.dart';
 
-enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke, dangerForecast, zoneFire }
+enum AlertType { anomaly, seasonSoon, inSeason, nearbyHotspot, detections, groundSmoke, dangerForecast, zoneFire, official }
 
 enum AlertLevel { info, warning, danger }
 
@@ -30,6 +31,7 @@ class FireAlert {
     this.danger,
     this.date,
     this.zone,
+    this.broadcast,
   });
 
   final AlertType type;
@@ -54,8 +56,11 @@ class FireAlert {
   /// region the zone lies in.
   final AlertZone? zone;
 
+  /// A zone alert sent by the Firesight team (admin page).
+  final Broadcast? broadcast;
+
   /// Stable id, used so the same alert is not notified twice.
-  String get id => '${type.name}_${region.id}${zone == null ? '' : '_z${zone!.id}'}_${summary?.year ?? ''}'
+  String get id => '${type.name}_${region.id}${zone == null ? '' : '_z${zone!.id}'}${broadcast == null ? '' : '_b${broadcast!.id}'}_${summary?.year ?? ''}'
       '${summary?.month ?? ''}_${month ?? ''}_${count ?? ''}_${estimateKey ?? ''}'
       '${danger == null ? '' : '_${danger!.name}_${date!.year}-${date!.month}-${date!.day}'}';
 }
@@ -177,6 +182,36 @@ class AlertEngine {
       days: worst.date.difference(today).inDays,
       distanceKm: nearUser ? 0 : null,
       zone: zone,
+    );
+  }
+
+  /// A zone alert from the admin page, when its circle overlaps one of the
+  /// user's [zones] (named in the alert) or contains [user].
+  FireAlert? official({
+    required Broadcast broadcast,
+    required Region region,
+    required List<AlertZone> zones,
+    LatLng? user,
+  }) {
+    AlertZone? hit;
+    for (final z in zones) {
+      if (distanceKm(z.center, broadcast.center) <= z.radiusKm + broadcast.radiusKm) {
+        hit = z;
+        break;
+      }
+    }
+    final userInside = user != null && distanceKm(user, broadcast.center) <= broadcast.radiusKm;
+    if (hit == null && !userInside) return null;
+    return FireAlert(
+      type: AlertType.official,
+      level: switch (broadcast.level) {
+        'danger' => AlertLevel.danger,
+        'info' => AlertLevel.info,
+        _ => AlertLevel.warning,
+      },
+      region: region,
+      zone: hit,
+      broadcast: broadcast,
     );
   }
 

@@ -16,6 +16,7 @@ import '../data/repositories/fire_repository.dart';
 import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
 import '../services/auth_api.dart';
+import '../services/broadcast_api.dart';
 import '../services/background_checks.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
@@ -35,6 +36,7 @@ class AppState extends ChangeNotifier {
     this.alertEngine = const AlertEngine(),
     this.reportApi,
     this.authApi,
+    this.broadcastApi,
     FlutterSecureStorage? secureStorage,
   })  : _prefs = prefs,
         _secure = secureStorage ?? const FlutterSecureStorage(),
@@ -52,6 +54,9 @@ class AppState extends ChangeNotifier {
 
   /// Shares reports through the backend; null keeps them on this phone only.
   final ReportApi? reportApi;
+
+  /// Zone alerts sent from the admin page; null in demo mode.
+  final BroadcastApi? broadcastApi;
 
   /// Optional accounts; null (demo mode) means everyone is a guest.
   final AuthApi? authApi;
@@ -455,11 +460,32 @@ class AppState extends ChangeNotifier {
     found.addAll(await _dangerAlerts(ids));
     found.addAll(_smokeAlerts(ids));
     found.addAll(await _zoneAlerts(spotsOf));
+    found.addAll(await _officialAlerts());
     found.sort((a, b) => b.level.index.compareTo(a.level.index));
     alerts = found;
     checkingAlerts = false;
     notifyListeners();
     if (notify) await _notify(found, onlyNew: onlyNew);
+  }
+
+  /// Zone alerts from the Firesight team that reach one of the active zones
+  /// or the user's position.
+  Future<List<FireAlert>> _officialAlerts() async {
+    final api = broadcastApi;
+    if (api == null) return const [];
+    try {
+      final out = <FireAlert>[];
+      for (final b in await api.active()) {
+        final region = matchRegion(regions, b.center)?.region;
+        if (region == null) continue;
+        final a = alertEngine.official(
+            broadcast: b, region: region, zones: activeZones, user: userPosition ?? lastKnownPosition);
+        if (a != null) out.add(a);
+      }
+      return out;
+    } catch (_) {
+      return const []; // Offline: next check.
+    }
   }
 
   /// Per active zone: satellite fires inside it, a fire located by smoke

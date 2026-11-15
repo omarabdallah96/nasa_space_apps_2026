@@ -75,6 +75,7 @@ class S {
     final place = a.zone?.name ?? region(a.region);
     return switch (a.type) {
       AlertType.zoneFire => ar ? '$place: حريق داخل منطقتك' : '$place: fire inside your zone',
+      AlertType.official => a.broadcast!.titleIn(ar),
       AlertType.anomaly => ar
           ? '$place: نشاط حرائق ${status(a.summary!.status)}'
           : '$place: ${status(a.summary!.status).toLowerCase()} fire activity',
@@ -92,6 +93,13 @@ class S {
   String alertBody(FireAlert a) {
     final zone = a.zone != null;
     switch (a.type) {
+      case AlertType.official:
+        final where = a.zone == null
+            ? (ar ? 'منطقتك الحالية' : 'where you are')
+            : (ar ? 'منطقتك «${a.zone!.name}»' : 'your zone "${a.zone!.name}"');
+        return ar
+            ? '${a.broadcast!.messageIn(ar)}\nتنبيه من فريق Firesight يشمل $where.'
+            : '${a.broadcast!.messageIn(ar)}\nFiresight alert covering $where.';
       case AlertType.zoneFire:
         final d = a.distanceKm!.toStringAsFixed(a.distanceKm! < 10 ? 1 : 0);
         return ar
