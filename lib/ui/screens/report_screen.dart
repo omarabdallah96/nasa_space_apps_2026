@@ -151,15 +151,20 @@ class _ReportScreenState extends State<ReportScreen> {
         children: [
           // Step 1: what (required).
           StepHeader(number: 1, title: s.t('what_see'), done: _label != null),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               for (final l in ReportLabel.values)
                 ChoiceChip(
-                  avatar: Icon(labelIcon(l), size: 18),
+                  avatar: Icon(labelIcon(l), size: 14),
                   label: Text(s.label(l)),
+                  labelStyle: text.labelSmall?.copyWith(fontSize: 12),
+                  labelPadding: const EdgeInsets.only(right: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   selected: _label == l,
                   showCheckmark: false,
                   onSelected: (_) => setState(() => _label = l),
