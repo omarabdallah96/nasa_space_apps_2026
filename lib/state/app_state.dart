@@ -15,6 +15,7 @@ import '../data/models/zone.dart';
 import '../data/repositories/fire_repository.dart';
 import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
+import '../services/alert_sounds.dart';
 import '../services/auth_api.dart';
 import '../services/broadcast_api.dart';
 import '../services/device_api.dart';
@@ -126,12 +127,24 @@ class AppState extends ChangeNotifier {
   /// Periodic checks while the app is closed (Android).
   bool backgroundChecks = true;
 
+  /// Whether each kind of alert plays its sound; off shows it silently.
+  bool soundOn(SoundGroup g) => _prefs.getBool('$_kSoundPrefix${g.name}') ?? g.defaultOn;
+
+  Future<void> setSoundOn(SoundGroup g, bool on) async {
+    await _prefs.setBool('$_kSoundPrefix${g.name}', on);
+    notifyListeners();
+  }
+
+  AlertSound _soundOf(FireAlert a) =>
+      soundFor(a.level, groupOn: soundOn(SoundGroup.of(a.type)));
+
   static const _kWatch = 'watchlist',
       _kLang = 'language',
       _kDark = 'dark_mode',
       _kNotified = 'notified_alerts',
       _kOnboarded = 'onboarded',
       _kBackground = 'background_checks',
+      _kSoundPrefix = 'sound_',
       _kLastLat = 'last_lat',
       _kLastLon = 'last_lon',
       _kDeviceId = 'device_id',
@@ -545,7 +558,15 @@ class AppState extends ChangeNotifier {
             id: (m.messageId ?? n.title ?? '').hashCode & 0x7fffffff,
             title: n.title ?? '',
             body: n.body ?? '',
-            urgent: m.data['level'] == 'danger',
+            // Pushes are zone alerts from the Firesight team.
+            sound: soundFor(
+              switch (m.data['level']) {
+                'danger' => AlertLevel.danger,
+                'info' => AlertLevel.info,
+                _ => AlertLevel.warning,
+              },
+              groupOn: soundOn(SoundGroup.official),
+            ),
           );
         }
         checkAlerts(); // shows it in the Alerts tab
@@ -771,7 +792,7 @@ class AppState extends ChangeNotifier {
         id: a.id.hashCode & 0x7fffffff,
         title: s.alertTitle(a),
         body: s.alertBody(a),
-        urgent: a.level == AlertLevel.danger,
+        sound: _soundOf(a),
       );
     }
     if (toSend.any((a) => a.level == AlertLevel.danger)) {

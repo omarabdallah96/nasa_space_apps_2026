@@ -30,7 +30,7 @@ class _Notifications extends NotificationService {
   @override
   Future<void> init() async {}
   @override
-  Future<void> show({required int id, required String title, required String body, bool urgent = false}) async =>
+  Future<void> show({required int id, required String title, required String body, AlertSound sound = AlertSound.chime}) async =>
       shown.add(title);
 }
 

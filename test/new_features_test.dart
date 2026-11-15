@@ -36,7 +36,7 @@ class _RecordingNotifications extends NotificationService {
     required int id,
     required String title,
     required String body,
-    bool urgent = false,
+    AlertSound sound = AlertSound.chime,
   }) async =>
       sent.add(title);
 }

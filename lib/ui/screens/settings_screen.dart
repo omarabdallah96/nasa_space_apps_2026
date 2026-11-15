@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config.dart';
 import '../../l10n/strings.dart';
+import '../../services/alert_sounds.dart';
 import '../../services/background_checks.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -259,6 +260,21 @@ class _SettingsScreenState extends State<SettingsScreen>
                 value: state.backgroundChecks,
                 onChanged: state.setBackgroundChecks,
               ),
+            if (state.notifications.supported)
+              for (final g in SoundGroup.values)
+                _SwitchRow(
+                  key: ValueKey('sound_${g.name}'),
+                  icon: switch (g) {
+                    SoundGroup.nearMe => Icons.local_fire_department_outlined,
+                    SoundGroup.forecast => Icons.thermostat,
+                    SoundGroup.official => Icons.campaign_outlined,
+                    SoundGroup.trends => Icons.show_chart,
+                  },
+                  title: s.t('sound_${g.name}'),
+                  subtitle: s.t('sound_${g.name}_sub'),
+                  value: state.soundOn(g),
+                  onChanged: (on) => state.setSoundOn(g, on),
+                ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
