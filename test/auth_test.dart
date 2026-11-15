@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:nasa_space_apps_2026/data/repositories/mock_fire_repository.dart';
 import 'package:nasa_space_apps_2026/services/auth_api.dart';
 import 'package:nasa_space_apps_2026/services/notification_service.dart';
@@ -23,6 +24,7 @@ class _NoNotifications extends NotificationService {
 class _FakeAuthBackend {
   final users = <String, ({String password, String name})>{};
   final sessions = <String, String>{}; // token → email
+  final zones = <String, List<dynamic>>{}; // email → zones saved to the account
   bool offline = false;
   var _n = 0;
 
@@ -65,6 +67,15 @@ class _FakeAuthBackend {
         if (me == null) return _error(401, 'signed_out');
         users[me] = (password: users[me]!.password, name: body['name'] as String);
         return http.Response(jsonEncode({'user': _user(me)}), 200);
+      case ('GET', '/me/zones'):
+        if (me == null) return _error(401, 'signed_out');
+        final saved = zones[me];
+        return http.Response(
+            jsonEncode({'zones': saved ?? [], 'updatedAt': saved == null ? null : '2026-11-15T12:00:00.000Z'}), 200);
+      case ('PUT', '/me/zones'):
+        if (me == null) return _error(401, 'signed_out');
+        zones[me] = body['zones'] as List<dynamic>;
+        return http.Response(jsonEncode({'zones': zones[me], 'updatedAt': '2026-11-15T12:00:00.000Z'}), 200);
       case ('POST', '/auth/logout'):
         sessions.remove(token);
         return http.Response('{"signedIn":false}', 200);
@@ -159,6 +170,62 @@ void main() {
     await s.deleteAccount('password-1');
     expect(s.isGuest, isTrue);
     expect(backend.users, isEmpty);
+  });
+
+  group('zones saved to the account', () {
+    List<String> names(AppState s) => [for (final z in s.zones) z.name];
+
+    test('come back after a reinstall', () async {
+      final backend = _FakeAuthBackend();
+      var s = await _state(backend);
+      await s.register('a@b.co', 'password-1');
+      await s.addZone('Akkar', const LatLng(34.45, 36.24), 10);
+      await pumpEventQueue();
+      expect([for (final z in backend.zones['a@b.co']!) z['name']], ['Akkar']);
+
+      // Reinstall: no zones on the phone, the session signed in again.
+      final user = (await SharedPreferences.getInstance()).getString('account_user')!;
+      s = await _state(backend, prefs: {'account_user': user});
+      await s.refreshAccount();
+      expect(names(s), ['Akkar']);
+    });
+
+    test('signing in keeps the guest zones and adds the account ones', () async {
+      final backend = _FakeAuthBackend();
+      var s = await _state(backend);
+      await s.register('a@b.co', 'password-1');
+      await s.addZone('Akkar', const LatLng(34.45, 36.24), 10);
+      await pumpEventQueue();
+
+      s = await _state(backend); // New phone, as a guest.
+      await s.addZone('Home', const LatLng(33.89, 35.52), 5);
+      await s.signIn('a@b.co', 'password-1');
+      await pumpEventQueue();
+      expect(names(s), ['Akkar', 'Home']);
+      expect([for (final z in backend.zones['a@b.co']!) z['name']], ['Akkar', 'Home']);
+    });
+
+    test('a change made offline is uploaded on the next launch, not overwritten', () async {
+      final backend = _FakeAuthBackend();
+      final s = await _state(backend);
+      await s.register('a@b.co', 'password-1');
+      await s.addZone('Akkar', const LatLng(34.45, 36.24), 10);
+      await pumpEventQueue();
+
+      backend.offline = true;
+      await s.deleteZone(s.zones.single.id);
+      await pumpEventQueue();
+      expect(backend.zones['a@b.co'], isNotEmpty);
+
+      backend.offline = false;
+      final prefs = await SharedPreferences.getInstance();
+      final next = await _state(backend, prefs: {
+        for (final k in prefs.getKeys()) k: prefs.get(k)!,
+      });
+      await next.refreshAccount();
+      expect(next.zones, isEmpty);
+      expect(backend.zones['a@b.co'], isEmpty);
+    });
   });
 
   test('demo mode has no accounts', () async {

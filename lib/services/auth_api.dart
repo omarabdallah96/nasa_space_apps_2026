@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../data/models/zone.dart';
+
 /// A signed-in person. Signing in is optional: the app works as a guest.
 class AccountUser {
   const AccountUser({
@@ -93,6 +95,20 @@ class AuthApi {
 
   Future<void> deleteAccount(String token, String password) =>
       _send('DELETE', '/auth/me', token: token, body: {'password': password});
+
+  /// Alert zones saved to the account. [saved] is false when the app never
+  /// saved them: the server then answers with the zones of the user's newest
+  /// phone, if any.
+  Future<({List<AlertZone> zones, bool saved})> zones(String token) async {
+    final j = await _send('GET', '/me/zones', token: token);
+    return (
+      zones: [for (final z in j['zones'] as List) AlertZone.fromJson(z as Map<String, dynamic>)],
+      saved: j['updatedAt'] != null,
+    );
+  }
+
+  Future<void> saveZones(String token, List<AlertZone> zones) =>
+      _send('PUT', '/me/zones', token: token, body: {'zones': [for (final z in zones) z.toJson()]});
 
   Future<Map<String, dynamic>> _send(String method, String path,
       {String? token, Map<String, dynamic>? body}) async {

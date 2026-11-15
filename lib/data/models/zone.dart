@@ -51,7 +51,8 @@ class AlertZone {
         name: j['name'] as String,
         center: LatLng((j['lat'] as num).toDouble(), (j['lon'] as num).toDouble()),
         radiusKm: (j['radiusKm'] as num).toDouble(),
-        createdAt: DateTime.parse(j['createdAt'] as String),
+        // Zones the server took from a phone have no createdAt.
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
       );
 
   Map<String, dynamic> toJson() => {

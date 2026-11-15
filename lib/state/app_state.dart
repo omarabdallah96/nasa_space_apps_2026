@@ -138,6 +138,7 @@ class AppState extends ChangeNotifier {
       _kUser = 'account_user',
       _kToken = 'auth_token',
       _kZones = 'zones',
+      _kZonesDirty = 'zones_unsent',
       _kInstant = 'instant_alerts',
       _kLocatedAt = 'last_located_at',
       _kProTest = 'pro_test';
@@ -201,10 +202,63 @@ class AppState extends ChangeNotifier {
     checkAlerts();
   }
 
+  /// A zone change on this phone. Signed in, it is also saved to the account.
   Future<void> _saveZones() async {
     notifyListeners();
     await _prefs.setString(_kZones, jsonEncode([for (final z in zones) z.toJson()]));
     unawaited(syncDevice());
+    if (user != null && _token != null) {
+      await _prefs.setBool(_kZonesDirty, true);
+      unawaited(_uploadZones());
+    }
+  }
+
+  /// Saves this phone's zones to the account. Stays dirty when offline, so the
+  /// next launch uploads instead of overwriting them with the server's copy.
+  Future<bool> _uploadZones() async {
+    final api = authApi, token = _token;
+    if (api == null || token == null) return false;
+    try {
+      await api.saveZones(token, zones);
+      await _prefs.remove(_kZonesDirty);
+      return true;
+    } catch (e) {
+      debugPrint('zones: not saved to the account ($e)');
+      return false;
+    }
+  }
+
+  /// Brings this phone's zones and the account's in line.
+  /// [signedInNow]: the account was just opened here; the zones made as a
+  /// guest are kept and added to the account's. Otherwise (launch) the
+  /// account's copy wins, unless a change made here offline is still unsent.
+  Future<void> _syncZones({required bool signedInNow}) async {
+    final api = authApi, token = _token;
+    if (api == null || token == null) return;
+    if (!signedInNow && (_prefs.getBool(_kZonesDirty) ?? false)) {
+      await _uploadZones();
+      return;
+    }
+    final ({List<AlertZone> zones, bool saved}) remote;
+    try {
+      remote = await api.zones(token);
+    } catch (e) {
+      debugPrint('zones: account zones not loaded ($e)');
+      return;
+    }
+    if (_token != token) return; // Signed out meanwhile.
+    final merge = signedInNow || !remote.saved;
+    final ids = {for (final z in remote.zones) z.id};
+    final next = merge ? [...remote.zones, ...zones.where((z) => !ids.contains(z.id))] : remote.zones;
+    String encode(List<AlertZone> l) => jsonEncode([for (final z in l) z.toJson()]);
+    if (encode(next) != encode(zones)) {
+      zones = next;
+      notifyListeners();
+      await _prefs.setString(_kZones, encode(zones));
+      unawaited(syncDevice());
+      if (!loading) checkAlerts();
+    }
+    if (!remote.saved || encode(next) != encode(remote.zones)) await _uploadZones();
   }
 
   List<AlertZone> _loadZones() {
@@ -278,8 +332,8 @@ class AppState extends ChangeNotifier {
     backgroundChecks = _prefs.getBool(_kBackground) ?? true;
     final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
     if (lat != null && lon != null) lastKnownPosition = LatLng(lat, lon);
+    zones = _loadZones(); // Before the account: its refresh syncs zones.
     await _restoreAccount();
-    zones = _loadZones();
     proTest = _prefs.getBool(_kProTest) ?? false;
     instantAlerts = _prefs.getBool(_kInstant);
     final at = _prefs.getString(_kLocatedAt);
@@ -315,6 +369,7 @@ class AppState extends ChangeNotifier {
     final saved = _prefs.getString(_kUser);
     if (_token == null || saved == null) {
       user = null;
+      _token = null;
       return;
     }
     try {
@@ -335,7 +390,9 @@ class AppState extends ChangeNotifier {
       await _setUser(await api.me(token), token);
     } on AuthException catch (e) {
       if (e.code == 'signed_out') await _clearAccount();
+      return;
     }
+    await _syncZones(signedInNow: false);
   }
 
   /// Throws [AuthException] on failure.
@@ -385,6 +442,7 @@ class AppState extends ChangeNotifier {
     await _secure.write(key: _kToken, value: token);
     await _prefs.setString(_kUser, jsonEncode(u.toJson()));
     notifyListeners();
+    if (!linked) unawaited(_syncZones(signedInNow: true));
   }
 
   Future<void> _clearAccount() async {
@@ -392,6 +450,7 @@ class AppState extends ChangeNotifier {
     _token = null;
     notifyListeners();
     unawaited(syncDevice()); // unlinks the phone from the account
+    await _prefs.remove(_kZonesDirty);
     await _prefs.remove(_kUser);
     try {
       await _secure.delete(key: _kToken);
