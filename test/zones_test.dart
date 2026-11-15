@@ -131,13 +131,13 @@ void main() {
           'level': 'danger', 'lat': c.latitude, 'lon': c.longitude, 'radiusKm': r,
           'expiresAt': '2026-12-01T00:00:00Z',
         };
-    final client = MockClient((req) async => http.Response(
-        jsonEncode({
+    final client = MockClient((req) async => http.Response.bytes(
+        utf8.encode(jsonEncode({
           'broadcasts': [
             bc('near', const LatLng(33.40, 35.40), 5), // ~7 km from the farm: circles overlap (5 + 3)
             bc('far', const LatLng(34.40, 36.00), 5), // north Lebanon: no zone there
           ],
-        }),
+        })),
         200));
     SharedPreferences.setMockInitialValues({'onboarded': true, 'watchlist': <String>[]});
     final s = AppState(MockFireRepository(latency: Duration.zero),
