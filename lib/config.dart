@@ -12,7 +12,7 @@ import 'services/report_api.dart';
 const useMockData = bool.fromEnvironment('USE_MOCK');
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'https://cedx.coding-now.online/api/v1',
+  defaultValue: 'https://firesight.coding-now.online/api/v1',
 );
 
 /// Used by the app and by the background alert check.

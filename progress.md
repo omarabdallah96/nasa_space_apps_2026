@@ -8,7 +8,7 @@ Lebanon, Cyprus): **"Is this fire season normal?"** It has two parts that share 
 
 | Part | Repo | Status |
 |---|---|---|
-| Web app + API backend | `D:\2027\my_server\CedX-Nasa` (GitHub `omarabdallah96/CedX-Nasa`) | Live at <https://cedx.coding-now.online> |
+| Web app + API backend | `D:\2027\my_server\CedX-Nasa` (GitHub `omarabdallah96/CedX-Nasa`) | Live at <https://firesight.coding-now.online> |
 | Mobile app (Flutter, Android + iOS) | this repo | Built, runs against the live API; no test builds published yet |
 
 ---
@@ -54,7 +54,7 @@ volume for reports and photos.
 ## Mobile app (this repo)
 
 Stack: Flutter. Talks only to `FireRepository`; the default build uses the live API
-(`https://cedx.coding-now.online/api/v1`), `--dart-define=USE_MOCK=true` uses bundled demo data.
+(`https://firesight.coding-now.online/api/v1`), `--dart-define=USE_MOCK=true` uses bundled demo data.
 
 ### Timeline (all 2026-11-14)
 

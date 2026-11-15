@@ -22,7 +22,7 @@ class ApiFireRepository implements FireRepository {
   ApiFireRepository({required this.baseUrl, http.Client? client})
       : _client = client ?? http.Client();
 
-  /// e.g. `https://cedx.coding-now.online/api/v1`
+  /// e.g. `https://firesight.coding-now.online/api/v1`
   final String baseUrl;
   final http.Client _client;
   final _records = <String, FireRecord>{};
