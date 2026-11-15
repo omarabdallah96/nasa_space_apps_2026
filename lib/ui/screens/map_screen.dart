@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -116,33 +118,18 @@ class _MapScreenState extends State<MapScreen> {
                         ...darkBaseMap(),
                         // Fire danger forecast, under everything else.
                         if (_showDanger) _DangerLayer(future: _danger, day: _dangerDay),
-                        // Compass lines from smoke reports.
-                        PolylineLayer(
-                          polylines: [
-                            for (final r in state.reports)
-                              if (r.bearing != null)
-                                Polyline(
-                                  points: [r.position, project(r.position, r.bearing!, 8)],
-                                  strokeWidth: 2,
-                                  color: Ember.amber.withValues(alpha: 0.85),
-                                  pattern: StrokePattern.dashed(segments: const [8, 6]),
-                                ),
-                            // Arrowhead at the tip, pointing the way the report faced.
-                            for (final r in state.reports)
-                              if (r.bearing != null)
-                                Polyline(
-                                  points: [
-                                    project(project(r.position, r.bearing!, 8), r.bearing! + 150, 1),
-                                    project(r.position, r.bearing!, 8),
-                                    project(project(r.position, r.bearing!, 8), r.bearing! - 150, 1),
-                                  ],
-                                  strokeWidth: 3,
-                                  strokeCap: StrokeCap.round,
-                                  strokeJoin: StrokeJoin.round,
-                                  color: Ember.amber,
-                                ),
-                          ],
-                        ),
+                        // Compass lines from smoke reports. Sized in screen
+                        // pixels, so they stay the same on screen at any zoom.
+                        Builder(builder: (context) {
+                          final camera = MapCamera.of(context);
+                          return PolylineLayer(
+                            polylines: [
+                              for (final r in state.reports)
+                                if (r.bearing != null)
+                                  ..._bearingArrow(r.position, r.bearing!, camera),
+                            ],
+                          );
+                        }),
                         // The user's alert zones (paused ones greyed).
                         CircleLayer(
                           circles: [
@@ -596,6 +583,37 @@ IconData _labelIcon(ReportLabel l) => switch (l) {
     };
 
 IconData labelIcon(ReportLabel l) => _labelIcon(l);
+
+/// A dashed direction line with an arrowhead, a fixed size on screen
+/// (about 70 px long) whatever the zoom.
+List<Polyline> _bearingArrow(LatLng from, double bearing, MapCamera camera) {
+  // Metres covered by one screen pixel at this zoom and latitude.
+  final metresPerPx = 156543.03392 *
+      math.cos(from.latitude * math.pi / 180) /
+      math.pow(2, camera.zoom);
+  final lengthKm = 70 * metresPerPx / 1000;
+  final headKm = 12 * metresPerPx / 1000;
+  final tip = project(from, bearing, lengthKm);
+  return [
+    Polyline(
+      points: [from, tip],
+      strokeWidth: 2.5,
+      color: Ember.amber.withValues(alpha: 0.9),
+      pattern: StrokePattern.dashed(segments: const [8, 6]),
+    ),
+    Polyline(
+      points: [
+        project(tip, bearing + 150, headKm),
+        tip,
+        project(tip, bearing - 150, headKm),
+      ],
+      strokeWidth: 3,
+      strokeCap: StrokeCap.round,
+      strokeJoin: StrokeJoin.round,
+      color: Ember.amber,
+    ),
+  ];
+}
 
 /// Floating label on top of the map.
 class _MapChip extends StatelessWidget {
