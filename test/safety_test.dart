@@ -116,6 +116,48 @@ void main() {
     expect(asked.first.queryParameters['radiusKm'], '10.0');
   });
 
+  test('reads the nearest civil defense, Red Cross and hospital', () async {
+    Map<String, dynamic> place(String kind, String detail, double km) => {
+          'id': 'node/$km',
+          'kind': kind,
+          'detail': detail,
+          'name': null,
+          'nameAr': null,
+          'lat': 33.9,
+          'lon': 35.5,
+          'distanceKm': km,
+          'bearingDeg': 10,
+        };
+    var online = true;
+    final asked = <Uri>[];
+    final api = SafetyApi(
+      baseUrl: 'https://x/api/v1',
+      client: MockClient((req) async {
+        if (!online) throw http.ClientException('no network');
+        asked.add(req.url);
+        return http.Response.bytes(
+            utf8.encode(jsonEncode({
+              'resources': [
+                place('red_cross', 'ambulance_station', 1.2),
+                place('civil_defense', 'civil_defense', 3.4),
+                place('hospital', 'hospital', 5.6),
+              ],
+            })),
+            200);
+      }),
+    );
+    final got = await api.nearestHelp(const LatLng(33.8912, 35.5021));
+    expect(asked.single.path, '/api/v1/help');
+    expect(got.value.map((r) => r.kind),
+        [ResourceKind.redCross, ResourceKind.civilDefense, ResourceKind.hospital]);
+
+    // A few hundred metres on, with no network: the saved copy answers.
+    online = false;
+    final later = await api.nearestHelp(const LatLng(33.8935, 35.5044));
+    expect(later.offline, isTrue);
+    expect(later.value, hasLength(3));
+  });
+
   test('uses the saved copy when the server cannot be reached', () async {
     var online = true;
     final api = SafetyApi(
