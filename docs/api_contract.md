@@ -141,6 +141,33 @@ percentile point; `points` gives every grid point's FWI and level per day.
 Demo mode (`USE_MOCK=true`) generates a forecast in the same shape, so the
 week always starts today.
 
+## 5. Accounts (optional)
+
+Signing in is optional; every feature works as a guest. Demo mode has no
+accounts. The token is an opaque bearer token, stored in the phone's secure
+storage (Keychain / Android Keystore). A session lasts 180 days after it was
+last used.
+
+| Request | Body | Answer |
+|---|---|---|
+| `POST /auth/register` | `{email, password, name?}` | `201 {user, token}`; `409 email_taken`, `400 weak_password` (under 8 characters), `400 bad_email` |
+| `POST /auth/login` | `{email, password}` | `{user, token}`; `401 wrong_credentials` |
+| `GET /auth/me` | — | `{user}`; `401 signed_out` when the token expired |
+| `PATCH /auth/me` | `{name}` | `{user}` |
+| `POST /auth/logout` | — | `{signedIn: false}` |
+| `DELETE /auth/me` | `{password}` | `{deleted: true}`; required by the app stores |
+
+All but register and login send `Authorization: Bearer <token>`. Sign-in,
+sign-up and deletion are limited to 20 attempts per client per 15 minutes
+(`429 rate_limited`).
+
+```json
+{
+  "user": { "id": "4f1c…", "email": "rana@example.com", "name": "Rana", "createdAt": "2026-11-15T10:00:00.000Z" },
+  "token": "q9X…"
+}
+```
+
 ## Regenerating mocks
 
 ```

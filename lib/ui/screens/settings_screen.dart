@@ -5,7 +5,9 @@ import '../../l10n/strings.dart';
 import '../../services/background_checks.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../../services/auth_api.dart';
 import '../brand/ember_logo.dart';
+import 'auth_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Everything the user can change, in one place. Every row is a single tap:
@@ -66,6 +68,73 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
+  Future<void> _signOut() async {
+    final s = S.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(s.t('sign_out')),
+        content: Text(s.t('sign_out_confirm')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(s.t('cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(s.t('sign_out'))),
+        ],
+      ),
+    );
+    if (ok == true && mounted) await AppScope.read(context).signOut();
+  }
+
+  Future<void> _editName() async {
+    final state = AppScope.read(context);
+    final s = S.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (d) => _TextDialog(
+        title: s.t('edit_name'),
+        label: s.t('name_optional'),
+        initial: state.user?.name ?? '',
+        action: s.t('save'),
+      ),
+    );
+    if (name == null) return;
+    try {
+      await state.updateName(name);
+    } on AuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_authError(s, e))));
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final state = AppScope.read(context);
+    final s = S.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final password = await showDialog<String>(
+      context: context,
+      builder: (d) => _TextDialog(
+        title: s.t('delete_account'),
+        message: s.t('delete_account_body'),
+        label: s.t('password'),
+        action: s.t('delete'),
+        obscure: true,
+        danger: true,
+      ),
+    );
+    if (password == null || password.isEmpty) return;
+    try {
+      await state.deleteAccount(password);
+      messenger.showSnackBar(SnackBar(content: Text(s.t('account_deleted'))));
+    } on AuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_authError(s, e))));
+    }
+  }
+
+  static String _authError(S s, AuthException e) {
+    final key = 'auth_err_${e.code}';
+    final text = s.t(key);
+    return text == key ? s.t('auth_err_unknown') : text;
+  }
+
   void _replayIntro() => Navigator.push(
         context,
         MaterialPageRoute<void>(
@@ -93,6 +162,60 @@ class _SettingsScreenState extends State<SettingsScreen>
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
+          // ── Account (optional: guests can use everything) ──
+          if (state.accountsAvailable) ...[
+            _Header(s.t('account')),
+            _Group(children: [
+              if (state.isGuest)
+                ListTile(
+                  key: const ValueKey('account_guest'),
+                  onTap: () => AuthScreen.open(context),
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+                  leading: const _IconBox(Icons.person_outline),
+                  title: Text(s.t('guest'), style: _titleStyle),
+                  subtitle: Text(s.t('guest_sub'), style: TextStyle(color: Ember.textMuted)),
+                  trailing: FilledButton.tonal(
+                    onPressed: () => AuthScreen.open(context),
+                    child: Text(s.t('sign_in')),
+                  ),
+                )
+              else ...[
+                ListTile(
+                  key: const ValueKey('account_user'),
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Ember.ember.withValues(alpha: 0.18),
+                    child: Text(
+                      state.user!.displayName.characters.first.toUpperCase(),
+                      style: const TextStyle(color: Ember.ember, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  title: Text(state.user!.displayName, style: _titleStyle),
+                  subtitle: Text(state.user!.email, style: TextStyle(color: Ember.textMuted)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.edit_outlined, color: Ember.textMuted),
+                    tooltip: s.t('edit_name'),
+                    onPressed: _editName,
+                  ),
+                ),
+                ListTile(
+                  onTap: _signOut,
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+                  leading: const _IconBox(Icons.logout),
+                  title: Text(s.t('sign_out'), style: _titleStyle),
+                ),
+                ListTile(
+                  onTap: _deleteAccount,
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 6, 12, 6),
+                  leading: const _IconBox(Icons.delete_outline, color: Ember.extreme),
+                  title: Text(s.t('delete_account'),
+                      style: _titleStyle.copyWith(color: Ember.extreme)),
+                ),
+              ],
+            ]),
+          ],
+
           // ── Alerts ──
           _Header(s.t('alerts')),
           _Group(children: [
@@ -237,6 +360,72 @@ class _SettingsScreenState extends State<SettingsScreen>
 }
 
 const _titleStyle = TextStyle(fontWeight: FontWeight.w600);
+
+/// A dialog with one text field; pops with the text, or null when cancelled.
+class _TextDialog extends StatefulWidget {
+  const _TextDialog({
+    required this.title,
+    required this.label,
+    required this.action,
+    this.message,
+    this.initial = '',
+    this.obscure = false,
+    this.danger = false,
+  });
+
+  final String title, label, action, initial;
+  final String? message;
+  final bool obscure, danger;
+
+  @override
+  State<_TextDialog> createState() => _TextDialogState();
+}
+
+class _TextDialogState extends State<_TextDialog> {
+  late final _text = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.message != null) ...[
+            Text(widget.message!),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _text,
+            autofocus: true,
+            obscureText: widget.obscure,
+            maxLength: widget.obscure ? null : 60,
+            decoration: InputDecoration(labelText: widget.label),
+            onSubmitted: (v) => Navigator.pop(context, v),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(s.t('cancel'))),
+        FilledButton(
+          style: widget.danger
+              ? FilledButton.styleFrom(backgroundColor: Ember.extreme, foregroundColor: Colors.white)
+              : null,
+          onPressed: () => Navigator.pop(context, _text.text),
+          child: Text(widget.action),
+        ),
+      ],
+    );
+  }
+}
 
 class _Header extends StatelessWidget {
   const _Header(this.text);

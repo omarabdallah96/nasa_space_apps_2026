@@ -1,6 +1,7 @@
 import 'data/repositories/api_fire_repository.dart';
 import 'data/repositories/fire_repository.dart';
 import 'data/repositories/mock_fire_repository.dart';
+import 'services/auth_api.dart';
 import 'services/report_api.dart';
 
 /// Live data from the Firesight backend. Build with
@@ -18,3 +19,6 @@ FireRepository createRepository() =>
 
 /// Shares field reports with other phones; demo mode keeps them on the phone.
 ReportApi? createReportApi() => useMockData ? null : ReportApi(baseUrl: apiBaseUrl);
+
+/// Optional sign-in; demo mode has no accounts, so everyone is a guest.
+AuthApi? createAuthApi() => useMockData ? null : AuthApi(baseUrl: apiBaseUrl);

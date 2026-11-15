@@ -6,9 +6,10 @@ import '../../l10n/strings.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../brand/ember_logo.dart';
+import 'auth_screen.dart';
 
 /// First-launch intro: the question, the harmonization idea, the mobile
-/// features, then language + permissions.
+/// features, language + permissions, then an optional account (guest is the default).
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onDone});
 
@@ -21,7 +22,9 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pages = PageController();
   int _page = 0;
-  static const _count = 4;
+
+  /// The account page only shows when the server offers accounts.
+  int get _count => AppScope.read(context).accountsAvailable ? 5 : 4;
 
   @override
   void dispose() {
@@ -84,6 +87,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     title: s.t('ob4_title'),
                     body: s.t('ob4_body'),
                   ),
+                  if (_count == 5)
+                    _Page(
+                      art: const _AccountArt(),
+                      title: s.t('ob5_title'),
+                      body: s.t('ob5_body'),
+                    ),
                 ],
               ),
             ),
@@ -110,7 +119,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       backgroundColor: Ember.ember,
                       foregroundColor: Ember.background,
                     ),
-                    child: Text(s.t(last ? 'get_started' : 'next'),
+                    child: Text(
+                        s.t(!last
+                            ? 'next'
+                            : _count == 5 && AppScope.of(context).isGuest
+                                ? 'continue_guest'
+                                : 'get_started'),
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
@@ -295,6 +309,55 @@ class _FeaturesArt extends StatelessWidget {
             ]),
           ),
       ],
+    );
+  }
+}
+
+/// Sign in / create account, or the account already signed in.
+class _AccountArt extends StatelessWidget {
+  const _AccountArt();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final s = S.of(context);
+    final user = state.user;
+    if (user != null) {
+      return SizedBox(
+        width: 290,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.check_circle, size: 56, color: Ember.calm),
+          const SizedBox(height: 12),
+          Text('${s.t('signed_in_as')} ${user.displayName}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(user.email, style: TextStyle(color: Ember.textMuted)),
+        ]),
+      );
+    }
+    return SizedBox(
+      width: 290,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(Icons.account_circle_outlined, size: 72, color: Ember.ember),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => AuthScreen.open(context, register: true),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: Icon(Icons.person_add_alt, color: Ember.ember),
+            label: Text(s.t('create_account'), style: TextStyle(color: Ember.text)),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => AuthScreen.open(context),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: Icon(Icons.login, color: Ember.ember),
+            label: Text(s.t('sign_in'), style: TextStyle(color: Ember.text)),
+          ),
+        ],
+      ),
     );
   }
 }

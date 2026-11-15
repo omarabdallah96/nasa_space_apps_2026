@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +12,7 @@ import '../data/models/region.dart';
 import '../data/repositories/fire_repository.dart';
 import '../l10n/strings.dart';
 import '../services/alert_engine.dart';
+import '../services/auth_api.dart';
 import '../services/background_checks.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
@@ -27,7 +31,10 @@ class AppState extends ChangeNotifier {
     WeatherService? weather,
     this.alertEngine = const AlertEngine(),
     this.reportApi,
+    this.authApi,
+    FlutterSecureStorage? secureStorage,
   })  : _prefs = prefs,
+        _secure = secureStorage ?? const FlutterSecureStorage(),
         notifications = notifications ?? NotificationService(),
         weather = weather ?? WeatherService(),
         reportStore = ReportStore(prefs);
@@ -42,6 +49,18 @@ class AppState extends ChangeNotifier {
 
   /// Shares reports through the backend; null keeps them on this phone only.
   final ReportApi? reportApi;
+
+  /// Optional accounts; null (demo mode) means everyone is a guest.
+  final AuthApi? authApi;
+
+  /// Keeps the sign-in token out of plain preferences.
+  final FlutterSecureStorage _secure;
+
+  /// The signed-in person, or null for a guest. Every feature works as a guest.
+  AccountUser? user;
+  String? _token;
+  bool get isGuest => user == null;
+  bool get accountsAvailable => authApi != null;
 
   List<Region> regions = const [];
   Region? selected;
@@ -91,7 +110,9 @@ class AppState extends ChangeNotifier {
       _kBackground = 'background_checks',
       _kLastLat = 'last_lat',
       _kLastLon = 'last_lon',
-      _kDeviceId = 'device_id';
+      _kDeviceId = 'device_id',
+      _kUser = 'account_user',
+      _kToken = 'auth_token';
 
   /// Random id for this install, so the backend can tell a retry from a new
   /// report. Not tied to the person or the hardware.
@@ -152,6 +173,7 @@ class AppState extends ChangeNotifier {
     backgroundChecks = _prefs.getBool(_kBackground) ?? true;
     final lat = _prefs.getDouble(_kLastLat), lon = _prefs.getDouble(_kLastLon);
     if (lat != null && lon != null) lastKnownPosition = LatLng(lat, lon);
+    await _restoreAccount();
     try {
       regions = await repository.getRegions();
       selected = regions.firstWhere(
@@ -166,6 +188,102 @@ class AppState extends ChangeNotifier {
     if (error == null && checkOnStart) {
       // Background check on launch: notify only alerts not seen before.
       checkAlerts(notify: true, onlyNew: true);
+    }
+  }
+
+  // ── Account ──
+
+  /// The last known user comes from preferences, so the app opens signed in
+  /// even offline; the server is asked afterwards whether the token still works.
+  Future<void> _restoreAccount() async {
+    if (authApi == null) return;
+    try {
+      _token = await _secure.read(key: _kToken);
+    } catch (_) {
+      _token = null; // Keystore trouble: start as a guest.
+    }
+    final saved = _prefs.getString(_kUser);
+    if (_token == null || saved == null) {
+      user = null;
+      return;
+    }
+    try {
+      user = AccountUser.fromJson(jsonDecode(saved) as Map<String, dynamic>);
+    } catch (_) {
+      user = null;
+      return;
+    }
+    unawaited(refreshAccount());
+  }
+
+  /// Signs out on this phone when the server says the session is over;
+  /// keeps the saved user when the server cannot be reached.
+  Future<void> refreshAccount() async {
+    final api = authApi, token = _token;
+    if (api == null || token == null) return;
+    try {
+      await _setUser(await api.me(token), token);
+    } on AuthException catch (e) {
+      if (e.code == 'signed_out') await _clearAccount();
+    }
+  }
+
+  /// Throws [AuthException] on failure.
+  Future<void> signIn(String email, String password) async {
+    final r = await authApi!.login(email: email.trim(), password: password);
+    await _setUser(r.user, r.token);
+  }
+
+  /// Creates an account and signs in. Throws [AuthException] on failure.
+  Future<void> register(String email, String password, {String name = ''}) async {
+    final r = await authApi!.register(email: email.trim(), password: password, name: name.trim());
+    await _setUser(r.user, r.token);
+  }
+
+  Future<void> updateName(String name) async {
+    final token = _token;
+    if (token == null) return;
+    await _setUser(await authApi!.updateName(token, name.trim()), token);
+  }
+
+  /// Back to guest. The server session is ended when it can be reached.
+  Future<void> signOut() async {
+    final token = _token;
+    await _clearAccount();
+    if (token != null) {
+      try {
+        await authApi?.logout(token);
+      } catch (_) {
+        // Offline: the session expires on its own.
+      }
+    }
+  }
+
+  /// Deletes the account on the server, then signs out. Throws [AuthException].
+  Future<void> deleteAccount(String password) async {
+    final token = _token;
+    if (token == null) return;
+    await authApi!.deleteAccount(token, password);
+    await _clearAccount();
+  }
+
+  Future<void> _setUser(AccountUser u, String token) async {
+    user = u;
+    _token = token;
+    await _secure.write(key: _kToken, value: token);
+    await _prefs.setString(_kUser, jsonEncode(u.toJson()));
+    notifyListeners();
+  }
+
+  Future<void> _clearAccount() async {
+    user = null;
+    _token = null;
+    notifyListeners();
+    await _prefs.remove(_kUser);
+    try {
+      await _secure.delete(key: _kToken);
+    } catch (_) {
+      // Nothing more to do: the token is already forgotten in memory.
     }
   }
 
