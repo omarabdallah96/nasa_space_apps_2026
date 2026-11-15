@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "835948546488",
+    "project_id": "nasa-4225d",
+    "storage_bucket": "nasa-4225d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:835948546488:android:2bdd92775b3c708ed6e74d",
+        "android_client_info": {
+          "package_name": "online.codingnow.firesight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC42sioy3A7BL7vltdymDLMmn84SHAxeJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

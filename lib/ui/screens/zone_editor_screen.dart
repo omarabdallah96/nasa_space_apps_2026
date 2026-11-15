@@ -100,14 +100,14 @@ class _ZoneEditorScreenState extends State<ZoneEditorScreen> {
                       'VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/'
                       '${_gibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
                   maxNativeZoom: 9,
-                  userAgentPackageName: 'com.example.nasa_space_apps_2026',
+                  userAgentPackageName: 'online.codingnow.firesight',
                 ),
                 // Place names, so people can find their village.
                 TileLayer(
                   urlTemplate: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
                       'Reference_Labels_15m/default/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png',
                   maxNativeZoom: 13,
-                  userAgentPackageName: 'com.example.nasa_space_apps_2026',
+                  userAgentPackageName: 'online.codingnow.firesight',
                 ),
                 CircleLayer(circles: [
                   CircleMarker(

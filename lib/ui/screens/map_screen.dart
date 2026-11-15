@@ -124,7 +124,7 @@ class _MapScreenState extends State<MapScreen> {
                               'VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/'
                               '$_gibsDate/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
                           maxNativeZoom: 9,
-                          userAgentPackageName: 'com.example.nasa_space_apps_2026',
+                          userAgentPackageName: 'online.codingnow.firesight',
                         ),
                         // Fire danger forecast, under everything else.
                         if (_showDanger) _DangerLayer(future: _danger, day: _dangerDay),
